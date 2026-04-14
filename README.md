@@ -57,6 +57,11 @@ npx skills add @singleton-sd/skills --all
 | [`writing/translation`](writing/translation/SKILL.md) | Translate content while preserving tone and intent |
 | [`writing/tone-adjustment`](writing/tone-adjustment/SKILL.md) | Rewrite content to match a target tone |
 
+### Operations
+| Skill | Description |
+|-------|-------------|
+| [`operations/task-management`](operations/task-management/SKILL.md) | Create and manage tasks through a defined status workflow |
+
 ## Skill format
 
 Each skill lives in its own folder as a `SKILL.md` file:
