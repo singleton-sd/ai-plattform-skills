@@ -31,7 +31,7 @@ backlog → scoping → ready for development → in design → in development �
 | `in development` | Engineering implementation in progress |
 | `in review` | PR open or work submitted for peer review |
 | `testing` | QA or acceptance testing in progress |
-| `shipped` | Deployed and complete |
+| `shipped` | Deployed and complete — use this, not `complete` (that status does not exist) |
 | `cancelled` | Abandoned — leave a comment explaining why before closing |
 
 ---
@@ -77,6 +77,17 @@ chore: AI-99 Update dependencies to latest versions
 ```
 
 See `engineering/git-conventions` for the full commit format rules.
+
+---
+
+## Workspace context
+
+| Detail | Value |
+|--------|-------|
+| Ticket prefix | `AI-` |
+| Skills list | AI Plattform → Skills → Skills Product Backlog (ID: `901614473129`) |
+
+When creating a task for a new or updated skill, default to the Skills Product Backlog list.
 
 ---
 
