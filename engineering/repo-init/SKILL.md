@@ -469,6 +469,54 @@ stages:
 
 ---
 
+## Known issues & adaptations
+
+### ESM projects (`"type": "module"` in package.json)
+
+Two things break when the repo is an ESM package:
+
+**1. `.commitlintrc.js` uses CommonJS `module.exports` — it will fail**
+
+Use `.commitlintrc.cjs` instead. Node.js honours the `.cjs` extension regardless of `"type": "module"`.
+
+**2. Hook scripts as `.ts` files fail with `Unknown file extension ".ts"`**
+
+`ts-node` is invoked by Node's ESM loader, which doesn't understand `.ts`. Fix: write hook scripts as `.mjs` (native ESM) instead of `.ts`, removing the `ts-node` dependency from the hooks entirely. The logic is identical — just use `import`/`export` syntax without type annotations.
+
+Update the shell hooks to call `node .husky/script.mjs` directly:
+
+```sh
+node .husky/prepare-commit-msg.mjs "$1"
+node ./node_modules/@commitlint/cli/cli.js --edit "$1"
+```
+
+---
+
+### Windows (Git Bash) — `yarn <binary>` path mangling
+
+`yarn ts-node` and similar commands fail in Git Bash on Windows because the resolved binary path (`C:\path\to\.bin\ts-node`) gets mangled when passed through the shell. Fix: call binaries via their full `node_modules` path using `node`:
+
+```sh
+# Instead of: yarn ts-node --project ...
+node ./node_modules/ts-node/dist/bin.js --project ...
+
+# Instead of: yarn commitlint --edit
+node ./node_modules/@commitlint/cli/cli.js --edit "$1"
+```
+
+---
+
+### `*.lock` in `.gitignore` blocks `yarn.lock`
+
+If the repo's `.gitignore` includes `*.lock`, add an exception so the lockfile is committed:
+
+```gitignore
+*.lock
+!yarn.lock
+```
+
+---
+
 ## Files created summary
 
 ```
