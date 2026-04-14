@@ -2,13 +2,32 @@
   "name": "@singleton-sd/skills",
   "version": "0.1.0",
   "description": "Internal AI agent skills for Singleton SD",
-  "keywords": ["skills", "ai-agents", "llm", "prompts", "singleton-sd", "platform-agnostic"],
+  "keywords": [
+    "skills",
+    "ai-agents",
+    "llm",
+    "prompts",
+    "singleton-sd",
+    "platform-agnostic"
+  ],
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
-    "postinstall": "node scripts/postinstall.js"
+    "postinstall": "node scripts/postinstall.js",
+    "prepare": "husky",
+    "release": "release-it -VV --dry-run",
+    "release:ci": "release-it --ci"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19",
+    "@commitlint/config-conventional": "^19",
+    "@release-it/conventional-changelog": "^10",
+    "husky": "^9",
+    "release-it": "^18",
+    "ts-node": "^10",
+    "typescript": "^6.0.2"
   }
 }
