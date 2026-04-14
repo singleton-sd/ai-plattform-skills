@@ -1,0 +1,14 @@
+{
+  "name": "@singleton-sd/skills",
+  "version": "0.1.0",
+  "description": "Internal AI agent skills for Singleton SD",
+  "keywords": ["skills", "ai-agents", "llm", "prompts", "singleton-sd", "platform-agnostic"],
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
