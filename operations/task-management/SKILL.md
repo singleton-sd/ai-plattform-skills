@@ -76,6 +76,10 @@ fix: AI-17 Resolve null pointer in token parser
 chore: AI-99 Update dependencies to latest versions
 ```
 
+**One ticket per commit** — never reuse a ticket ID for a different piece of work. If you are committing a change unrelated to the current ticket, create a new task first and use that ID.
+
+**Subject length budget** — the subject limit is 50 chars. The prefix `type: AI-XX ` already consumes ~12 chars, leaving ~38 for the description. Count before writing.
+
 See `engineering/git-conventions` for the full commit format rules.
 
 ---
