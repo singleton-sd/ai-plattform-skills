@@ -62,6 +62,7 @@ npx skills add @singleton-sd/skills --all
 |-------|-------------|
 | [`operations/task-management`](operations/task-management/SKILL.md) | Create and manage tasks through a defined status workflow |
 | [`operations/task-driven-development`](operations/task-driven-development/SKILL.md) | Work through project-management tasks one at a time with scoped staging and commit messages |
+| [`operations/skill-authoring-workflow`](operations/skill-authoring-workflow/SKILL.md) | Create or update shared skills with task tracking and commit discipline |
 
 ## Skill format
 
