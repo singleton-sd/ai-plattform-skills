@@ -28,6 +28,12 @@ Use this skill when implementing work from a project-management list or workflow
    - When the task implementation is finished, do **not** mark it complete yet.
    - Mark a finished task complete only when the user explicitly asks, or when the user says to move to the next task.
    - If a requested status is rejected, inspect valid task/list statuses and use the closest valid equivalent.
+   - If a task is duplicate or already delivered by another task, use the
+     list's `cancelled` status when it exists. In ClickUp this may be a
+     terminal/done status rather than an open status.
+   - For duplicate or covered work, prefer the native `Delivered by` custom
+     field over a generic task link when that field exists. Verify with
+     `clickup_get_task` that the field value points to the delivering task.
 
 4. Staging and commits:
    - Stage only files changed for the current task.
