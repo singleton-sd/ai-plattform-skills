@@ -42,6 +42,17 @@ Use this skill when implementing work from a project-management list or workflow
    - Use `docs` for documentation-only changes.
    - Follow the repository's commit message format and length rules.
 
+6. Requirement drift and inconsistencies:
+   - If task text conflicts with user clarification, repo conventions, or
+     existing config names, ask the user before expanding scope.
+   - Do not implement future-ticket behavior just because a ticket example
+     implies it. Keep the current ticket scoped to the clarified work.
+   - When the clarified scope differs from the project-management task,
+     update the task description to reflect the actual work before final
+     handoff.
+   - Call out known mismatches, such as example path names that do not exist
+     in config, in the final summary or as a question for the user.
+
 ## End-of-task response
 
 When a task is implemented and staged, report:
