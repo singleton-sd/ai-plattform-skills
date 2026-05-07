@@ -16,6 +16,11 @@ claude mcp add --transport http clickup https://mcp.clickup.com/mcp
 
 Then run `/mcp` in Claude Code to authenticate via OAuth.
 
+**Default task destinations** for this skills repo (IDs and URLs) live in
+[`config/clickup-defaults.json`](config/clickup-defaults.json). Use the
+**Skills Product Backlog** list when creating tasks for skill changes unless the
+user specifies another destination.
+
 ## Adding an integration
 
 If you connect a new MCP server that's useful for the team, add it here with:

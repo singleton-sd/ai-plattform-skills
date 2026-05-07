@@ -1,0 +1,22 @@
+{
+  "$schema_comment": "Default ClickUp destinations for agents working with this repository.",
+  "skillsRepositoryTasks": {
+    "workspaceName": "Workspace",
+    "workspaceId": "90161394355",
+    "spaceName": "AI Plattform",
+    "spaceId": "90166782889",
+    "folderName": "Skills",
+    "folderId": "90169272450",
+    "listName": "Skills Product Backlog",
+    "listId": "901614473129",
+    "listUrl": "https://app.clickup.com/90161394355/v/l/6-901614473129-1?pr=90166782889"
+  },
+  "personalBrandAssetsTasks": {
+    "note": "Optional: patoperpetua/assets repo uses Personal Brand / Profile Picture.",
+    "workspaceName": "Workspace",
+    "spaceName": "Personal Brand",
+    "folderName": "Profile Picture",
+    "listName": "Profile Picture",
+    "listId": "901614473311"
+  }
+}

@@ -39,6 +39,25 @@ chore: SSDOP-99 Update dependencies to latest versions
 | Body line length | Max 72 characters per line |
 | Release commits | Skipped — format is `chore: Release vX.Y.Z` (auto-generated) |
 
+### Commit body: 72-character lines
+
+When the commit has a **body** (paragraphs or bullet list):
+
+- **Every** body line must be **≤ 72 characters** (count spaces and punctuation).
+- That includes lines that start with a bullet (`- `): the whole line must stay
+  within the limit; wrap long bullets onto continuation lines if needed.
+- Prefer breaking at natural phrase boundaries, not mid-word.
+
+Example (subject obeys 50-character limit; each body line ≤ 72):
+
+```
+chore: SSDOP-42 Add parallel TS build driver
+
+- Parallel: generate-html, manifest icons, and profile pipeline
+- Profile: static assets, then animations (PNG cache reuse)
+- Run build via ts-node instead of bash for portability
+```
+
 ### Ticket auto-injection
 
 The `prepare-commit-msg` hook automatically injects the ticket number from the branch name. If you are on `feature/SSDOP-42-dark-mode`, writing:

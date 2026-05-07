@@ -22,15 +22,17 @@ Use this skill when creating or updating a skill in this repository.
 
 ## Task Tracking
 
-1. Create a ClickUp task in the Skills Product Backlog unless the user provides an existing task.
-   - List ID: `901614473129`
+1. Before creating a task, read [`config/clickup-defaults.json`](../../config/clickup-defaults.json)
+   and default to **`skillsRepositoryTasks`** (Skills Product Backlog) unless the user names another list.
+2. Create a ClickUp task there unless the user provides an existing task.
+   - List ID: `901614473129` (also recorded in `config/clickup-defaults.json`)
    - Use an action-first, sentence-case name.
    - Include why the skill is needed and acceptance criteria.
-2. Use the task custom ID in commit messages.
-3. Set the task to the active working status when implementation starts.
+3. Use the task custom ID in commit messages.
+4. Set the task to the active working status when implementation starts.
    - Prefer `in progress` if the list supports it.
    - Use `in development` when `in progress` is not a valid status.
-4. Do not mark the task complete when implementation is merely finished.
+5. Do not mark the task complete when implementation is merely finished.
    - Mark it complete only when the user asks or when the user says to move to the next task.
 
 ## Authoring
