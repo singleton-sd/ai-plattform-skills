@@ -57,6 +57,11 @@ npx skills add @singleton-sd/skills --all
 | [`writing/translation`](writing/translation/SKILL.md) | Translate content while preserving tone and intent |
 | [`writing/tone-adjustment`](writing/tone-adjustment/SKILL.md) | Rewrite content to match a target tone |
 
+### Documents
+| Skill | Description |
+|-------|-------------|
+| [`documents/pdf-to-markdown`](documents/pdf-to-markdown/SKILL.md) | Convert PDFs to audit-ready Markdown with `@opendataloader/pdf` (Node.js) for AI analysis |
+
 ### Operations
 | Skill | Description |
 |-------|-------------|

@@ -10,11 +10,29 @@ MCP servers and AI tool connections for use with this skills repo.
 
 Official MCP server provided by ClickUp.
 
+**Claude Code**
+
 ```bash
 claude mcp add --transport http clickup https://mcp.clickup.com/mcp
 ```
 
 Then run `/mcp` in Claude Code to authenticate via OAuth.
+
+**Cursor**
+
+Add to your `~/.cursor/mcp.json` (or project `.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "clickup": {
+      "url": "https://mcp.clickup.com/mcp"
+    }
+  }
+}
+```
+
+Reload Cursor, open **Settings → MCP**, start the ClickUp server, and complete the OAuth flow in your browser.
 
 **Default task destinations** for this skills repo (IDs and URLs) live in
 [`config/clickup-defaults.json`](config/clickup-defaults.json). Use the
