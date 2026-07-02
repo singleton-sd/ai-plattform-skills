@@ -1,5 +1,6 @@
 node_modules/
 .DS_Store
 Thumbs.db
+config/asic-defaults.local.json
 *.lock
 !yarn.lock

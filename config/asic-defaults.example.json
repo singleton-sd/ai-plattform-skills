@@ -1,0 +1,49 @@
+{
+  "$schema_comment": "Example ASIC workflow config. Copy to asic-defaults.local.json and fill in your paths and entities. The .local.json file is gitignored.",
+  "onedriveRoot": "C:/path/to/OneDrive/ASIC",
+  "folders": {
+    "templates": "templates",
+    "lodged": "lodged",
+    "consents": "consents",
+    "working": "working"
+  },
+  "entities": {
+    "example-business-name": {
+      "type": "business_name",
+      "displayName": "Your Business Name",
+      "slug": "your-business-name",
+      "defaultSignatory": "Full Legal Name",
+      "defaultEmail": "you@example.com",
+      "defaultPhone": "+61..."
+    },
+    "example-company": {
+      "type": "company",
+      "displayName": "Your Company Pty Ltd",
+      "slug": "your-company-pty-ltd",
+      "acn": "000000000",
+      "defaultSignatory": "Full Legal Name",
+      "defaultEmail": "you@example.com"
+    }
+  },
+  "templates": {
+    "address_change": "consent-address-change.docx",
+    "director_appointment": "consent-director-appointment.docx",
+    "director_resignation": "consent-director-resignation.docx",
+    "share_change": "consent-share-change.docx",
+    "detail_update": "consent-detail-update.docx"
+  },
+  "naming": {
+    "lodgedPdf": "{date}-{entity-slug}-{change-type}.pdf",
+    "consentDocx": "{date}-{entity-slug}-{change-type}-consent.docx",
+    "dateFormat": "YY-MM-DD"
+  },
+  "asicConnect": {
+    "businessNames": "https://connectonline.asic.gov.au/",
+    "companies": "https://connectonline.asic.gov.au/"
+  },
+  "relatedSkills": {
+    "pdfToMarkdown": "documents/pdf-to-markdown/SKILL.md",
+    "asic": "compliance/asic/SKILL.md",
+    "docx": "~/.claude/skills/docx/SKILL.md"
+  }
+}

@@ -62,6 +62,14 @@ npx skills add @singleton-sd/skills --all
 |-------|-------------|
 | [`documents/pdf-to-markdown`](documents/pdf-to-markdown/SKILL.md) | Convert PDFs to audit-ready Markdown with `@opendataloader/pdf` (Node.js) for AI analysis |
 
+### Compliance
+
+Regulatory filing workflows — one folder per body (e.g. `compliance/asic`, `compliance/ato`).
+
+| Skill | Description |
+|-------|-------------|
+| [`compliance/asic`](compliance/asic/SKILL.md) | Guide ASIC lodgements, archive receipt PDFs, and fill consent-form docx templates from OneDrive |
+
 ### Operations
 | Skill | Description |
 |-------|-------------|
