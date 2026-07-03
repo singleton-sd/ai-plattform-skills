@@ -53,7 +53,56 @@ Pick the date that best identifies the document, not necessarily the first date 
 
 Convert all dates to `YY-MM-DD`. If the document only gives a month or period, use the period end when clear; otherwise use the first day of the month and mention the uncertainty.
 
+## Prerequisites
+
+- Node.js 20.19+
+- Install [`@singleton-sd/ai-plattform-tools-pdf-context`](https://gitlab.com/singleton-sd/ai-plattform/tools/pdf-context/-/packages) (once per machine or project)
+
+### Install from GitLab npm registry (recommended)
+
+The package is **public** — no GitLab token required. Point the `@singleton-sd` scope at the project registry (once per machine or project), in `.npmrc`:
+
+```ini
+@singleton-sd:registry=https://gitlab.com/api/v4/projects/singleton-sd%2Fai-plattform%2Ftools%2Fpdf-context/packages/npm/
+```
+
+Then install:
+
+```bash
+npm install @singleton-sd/ai-plattform-tools-pdf-context
+```
+
+**One-off run** (no install; `.npmrc` scope line still required):
+
+```bash
+npx @singleton-sd/ai-plattform-tools-pdf-context \
+  --pdf "C:/path/to/document.pdf" \
+  --max-pages 3
+```
+
+After install, the CLI binary is `pdf-context` (from `node_modules/.bin`).
+
+### Install from source (development)
+
+```bash
+git clone git@gitlab.com:singleton-sd/ai-plattform/tools/pdf-context.git
+cd pdf-context
+yarn install
+```
+
+When working inside the ai-plattform workspace, the tool repo is at `tools/pdf-context/`.
+
 ## Workflow
+
+```text
+Task progress:
+- [ ] Confirm pdf path(s)
+- [ ] Install `@singleton-sd/ai-plattform-tools-pdf-context` if not present (see Prerequisites)
+- [ ] Run pdf-context for each PDF
+- [ ] Route large or scanned PDFs to pdf-to-markdown when needed
+- [ ] Classify, pick date, propose filename(s)
+- [ ] Present proposals (rename only if user confirms)
+```
 
 1. Resolve inputs.
    - Accept a single PDF, a folder, or a batch list.
@@ -62,21 +111,7 @@ Convert all dates to `YY-MM-DD`. If the document only gives a month or period, u
 
 2. Extract enough content.
    - Prefer Node.js tools for all extraction, parsing, manifest generation, and renaming commands.
-   - **Default for small PDFs (≤3 pages):** run `pdf-context` first (see below). Parse the JSON stdout for `page_count`, `metadata`, `pages`, `combined_text`, and `likely_scanned`.
-   - If `page_count` ≤ 3 and `likely_scanned` is `false`, use that JSON as the evidence source for classification, date selection, and filename proposals.
-   - If `page_count` > 3, use the `documents/pdf-to-markdown` skill and its Node.js CLI (`pdf-to-markdown`, `npx @singleton-sd/ai-plattform-tools-pdf-to-markdown`, or `node tools/pdf-to-markdown/convert_pdf.mjs`) instead of loading the whole PDF into context.
-   - If `likely_scanned` is `true`, route through the OCR-capable mode documented in `documents/pdf-to-markdown`; do not create ad hoc Python extraction scripts for this renaming skill.
-   - Stop once there is enough evidence for a high-confidence name.
-
-### pdf-context CLI (small PDFs)
-
-Install [`@singleton-sd/ai-plattform-tools-pdf-context`](https://gitlab.com/singleton-sd/ai-plattform/tools/pdf-context) or run from source at `tools/pdf-context/`.
-
-Registry scope in `.npmrc` (once per machine or project):
-
-```ini
-@singleton-sd:registry=https://gitlab.com/api/v4/projects/singleton-sd%2Fai-plattform%2Ftools%2Fpdf-context/packages/npm/
-```
+   - **Always start with `pdf-context`** — use the published CLI (do not hand-roll extraction unless the tool fails):
 
 ```bash
 pdf-context \
@@ -84,9 +119,9 @@ pdf-context \
   --max-pages 3
 ```
 
-One-off: `npx @singleton-sd/ai-plattform-tools-pdf-context --pdf "..." --max-pages 3`
+If the package is not on PATH, use `npx @singleton-sd/ai-plattform-tools-pdf-context`.
 
-From source inside ai-plattform:
+When developing from source inside ai-plattform:
 
 ```bash
 node tools/pdf-context/extract_context.mjs \
@@ -94,7 +129,12 @@ node tools/pdf-context/extract_context.mjs \
   --max-pages 3
 ```
 
-Use `metadata.creation_date` / `metadata.mod_date` (already `YY-MM-DD`) as date hints, then apply the date selection table above using text evidence from `pages` or `combined_text`.
+   - Parse the JSON stdout for `page_count`, `metadata`, `pages`, `combined_text`, and `likely_scanned`.
+   - If `page_count` ≤ 3 and `likely_scanned` is `false`, use that JSON as the evidence source for classification, date selection, and filename proposals.
+   - Use `metadata.creation_date` / `metadata.mod_date` (already `YY-MM-DD`) as date hints, then apply the date selection table using text from `pages` or `combined_text`.
+   - If `page_count` > 3, use the [`documents/pdf-to-markdown`](../pdf-to-markdown/SKILL.md) skill instead of loading the whole PDF into context.
+   - If `likely_scanned` is `true`, route through the OCR-capable mode in `documents/pdf-to-markdown`; do not create ad hoc Python extraction scripts.
+   - Stop once there is enough evidence for a high-confidence name.
 
 3. Classify the document.
    - Identify the document type from headings, labels, issuer, and repeated terms.
@@ -137,3 +177,19 @@ PDF rename proposals
 Renamed files:
 - {old_path} -> {new_path}
 ```
+
+## Troubleshooting
+
+| Problem | Action |
+| ------- | ------ |
+| Package not found / 404 on install | Add the `@singleton-sd` scope registry line to `.npmrc` (see Prerequisites) |
+| `pdf-context` not on PATH | Use `npx @singleton-sd/ai-plattform-tools-pdf-context` |
+| `likely_scanned: true` | Re-run via [`documents/pdf-to-markdown`](../pdf-to-markdown/SKILL.md) with `--mode hybrid` and OCR |
+| `page_count` > 3 | Use [`documents/pdf-to-markdown`](../pdf-to-markdown/SKILL.md) for full extraction |
+| Empty or conflicting dates | Fall back to date selection rules; use today's date only when no document date is reliable |
+
+## Additional resources
+
+- Tool package: [`@singleton-sd/ai-plattform-tools-pdf-context`](https://gitlab.com/singleton-sd/ai-plattform/tools/pdf-context/-/packages)
+- Full conversion for large/scanned PDFs: [`documents/pdf-to-markdown`](../pdf-to-markdown/SKILL.md)
+- Tool repo: [`pdf-context`](https://gitlab.com/singleton-sd/ai-plattform/tools/pdf-context)

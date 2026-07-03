@@ -8,6 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
 
 const CATEGORY_DIRS = [
+  'compliance',
   'design',
   'documents',
   'engineering',
@@ -17,10 +18,11 @@ const CATEGORY_DIRS = [
   'writing',
 ];
 
-const ADAPTER_ROOTS = ['.agents/skills', '.cursor/skills'];
+const ADAPTER_ROOTS = ['.agents/skills', '.claude/skills', '.cursor/skills'];
 
 const EXCLUDED_DIR_NAMES = new Set([
   '.agents',
+  '.claude',
   '.cursor',
   '.git',
   '.husky',

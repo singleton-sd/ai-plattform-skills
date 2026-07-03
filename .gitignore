@@ -7,4 +7,5 @@ config/asic-defaults.local.json
 
 # Generated agent skill adapters (see scripts/link-agent-skills.js)
 .agents/skills/
+.claude/skills/
 .cursor/skills/

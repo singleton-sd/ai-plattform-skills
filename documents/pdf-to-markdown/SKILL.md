@@ -210,7 +210,7 @@ Re-runs with the same source and mode increment the version (`v002`, `v003`, …
 
 ## Additional resources
 
-- Lightweight alternative for small PDFs: [`pdf-context`](https://gitlab.com/singleton-sd/ai-plattform/tools/pdf-context) (used by `documents/pdf-content-renamer`)
+- Lightweight alternative for small PDFs: [`@singleton-sd/ai-plattform-tools-pdf-context`](https://gitlab.com/singleton-sd/ai-plattform/tools/pdf-context/-/packages) (used by [`documents/pdf-content-renamer`](../pdf-content-renamer/SKILL.md))
 - Tool package: [`@singleton-sd/ai-plattform-tools-pdf-to-markdown`](https://gitlab.com/singleton-sd/ai-plattform/tools/pdf-to-markdown/-/packages/63017519)
 - Full legal/business naming, confidentiality, review, and chunking rules: [reference.md](reference.md)
 - Node.js quick start: [opendataloader.org/docs/quick-start-nodejs](https://opendataloader.org/docs/quick-start-nodejs)

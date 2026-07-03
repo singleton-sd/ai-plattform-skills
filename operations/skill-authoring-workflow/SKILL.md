@@ -22,7 +22,7 @@ Use this skill when creating or updating a skill in this repository.
 
 ## Task Tracking
 
-1. Before creating a task, read [`config/clickup-defaults.json`](../../config/clickup-defaults.json)
+1. Before creating a task, read [`config/clickup-defaults.json`](config/clickup-defaults.json)
    and default to **`skillsRepositoryTasks`** (Skills Product Backlog) unless the user names another list.
 2. Create a ClickUp task there unless the user provides an existing task.
    - List ID: `901614473129` (also recorded in `config/clickup-defaults.json`)
@@ -47,7 +47,12 @@ Use this skill when creating or updating a skill in this repository.
    - `status`
 3. Make the description specific and trigger-oriented.
 4. Keep `SKILL.md` focused on reusable procedure, not a transcript of one session.
-5. Capture recent learnings as durable rules, especially:
+5. Use repo-root-relative paths in links (for example `config/clickup-defaults.json`,
+   not `../../config/clickup-defaults.json`) so skills still resolve when tools read
+   them through `.agents/skills/`, `.claude/skills/`, or `.cursor/skills/` adapters.
+6. Choose a globally unique `<skill-name>` across all categories. Adapter folders use
+   the flat skill name only.
+7. Capture recent learnings as durable rules, especially:
    - Stage only files for the current task.
    - Do not commit unless the user explicitly asks.
    - Do not mark tasks complete until asked or moving on.
@@ -63,6 +68,17 @@ Use the existing row style:
 ```markdown
 | [`operations/example-skill`](operations/example-skill/SKILL.md) | One-line description |
 ```
+
+## Agent Adapters
+
+After adding or renaming a skill, regenerate Codex and Cursor adapter links:
+
+```bash
+npm run link:skills
+```
+
+This rebuilds `.agents/skills/<skill-name>/`, `.claude/skills/<skill-name>/`, and
+`.cursor/skills/<skill-name>/` as directory links back to the canonical skill folder.
 
 ## Validation
 

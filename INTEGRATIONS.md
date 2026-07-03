@@ -39,6 +39,33 @@ Reload Cursor, open **Settings → MCP**, start the ClickUp server, and complete
 **Skills Product Backlog** list when creating tasks for skill changes unless the
 user specifies another destination.
 
+## Agent skill adapters
+
+Canonical skills live under `<category>/<skill-name>/SKILL.md`. Codex, Claude Code,
+and Cursor discover skills from flat adapter folders that link back to those sources:
+
+```
+.agents/skills/<skill-name>/   →  <category>/<skill-name>/
+.claude/skills/<skill-name>/   →  <category>/<skill-name>/
+.cursor/skills/<skill-name>/   →  <category>/<skill-name>/
+```
+
+Regenerate adapters after adding or renaming a skill:
+
+```bash
+npm run link:skills
+```
+
+Adapters are also rebuilt automatically on `npm install` via the `prepare` hook.
+The adapter folders are gitignored — only the canonical skill files are committed.
+
+When authoring skills, use repo-root-relative paths (for example
+`config/clickup-defaults.json`, not `../../config/clickup-defaults.json`) so
+links still resolve when a tool reads the skill through an adapter folder.
+
+Skill names must be globally unique across categories because adapter folders
+use the flat `<skill-name>` form.
+
 ## Adding an integration
 
 If you connect a new MCP server that's useful for the team, add it here with:
