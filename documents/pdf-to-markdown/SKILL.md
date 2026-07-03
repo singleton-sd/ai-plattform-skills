@@ -15,6 +15,12 @@ Convert a PDF into audit-ready Markdown (and companion JSON/metadata) using [Ope
 - User provides a PDF file path and wants Markdown for AI analysis
 - User mentions `opendataloader-pdf`, `@opendataloader/pdf`, PDF parsing, or document ingestion for RAG
 - Legal, business, or operational PDFs that need traceable naming and logs
+- Large PDFs (more than ~3 pages) or scanned/image PDFs needing OCR
+
+## When NOT to use
+
+- **Rename or classify only** on small digital PDFs (typically 1–3 pages) — use [`documents/pdf-content-renamer`](../pdf-content-renamer/SKILL.md) with the `pdf-context` CLI (`@singleton-sd/ai-plattform-tools-pdf-context`) instead. It is faster, needs no Java, and does not create a `/documents` archive tree.
+- Quick filename or date extraction without full Markdown, metadata versioning, or audit logs
 
 ## Required inputs
 
@@ -204,6 +210,7 @@ Re-runs with the same source and mode increment the version (`v002`, `v003`, …
 
 ## Additional resources
 
+- Lightweight alternative for small PDFs: [`pdf-context`](https://gitlab.com/singleton-sd/ai-plattform/tools/pdf-context) (used by `documents/pdf-content-renamer`)
 - Tool package: [`@singleton-sd/ai-plattform-tools-pdf-to-markdown`](https://gitlab.com/singleton-sd/ai-plattform/tools/pdf-to-markdown/-/packages/63017519)
 - Full legal/business naming, confidentiality, review, and chunking rules: [reference.md](reference.md)
 - Node.js quick start: [opendataloader.org/docs/quick-start-nodejs](https://opendataloader.org/docs/quick-start-nodejs)

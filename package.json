@@ -14,7 +14,8 @@
   "type": "module",
   "scripts": {
     "postinstall": "node scripts/postinstall.js",
-    "prepare": "husky",
+    "link:skills": "node scripts/link-agent-skills.js",
+    "prepare": "node scripts/link-agent-skills.js && husky",
     "release": "release-it -VV --dry-run",
     "release:ci": "release-it --ci"
   },

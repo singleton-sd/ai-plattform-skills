@@ -4,3 +4,7 @@ Thumbs.db
 config/asic-defaults.local.json
 *.lock
 !yarn.lock
+
+# Generated agent skill adapters (see scripts/link-agent-skills.js)
+.agents/skills/
+.cursor/skills/
