@@ -15,15 +15,16 @@ Rename PDFs based on evidence found inside the document. Prefer accurate, boring
 Use this format unless the user specifies another convention:
 
 ```text
-YY-MM-DD-document-type-issuer-subject-detail.pdf
+YY-MM-DD Name Type Detail.pdf
 ```
 
 Rules:
 
 - Start every filename with `YY-MM-DD`.
 - Use the most relevant date found in the document. If no reliable date is found, use today's date in the user's timezone.
-- Use lowercase kebab-case after the date.
-- Keep names concise: document type, issuer/provider, subject/account tail, and period or short distinguishing detail.
+- After the date, use human-readable Title Case words separated by spaces.
+- Prefer this order after the date: person/entity or provider name, document type, and useful distinguishing detail.
+- Keep names concise: name/provider, document type, subject/account tail, period, location/state, or short distinguishing detail.
 - Remove unsafe filesystem characters: `< > : " / \ | ? *`, control characters, repeated spaces, and trailing dots.
 - Do not overwrite existing files. Add `-v2`, `-v3`, etc. only when needed.
 - Preserve the original `.pdf` extension.
@@ -31,10 +32,11 @@ Rules:
 Examples:
 
 ```text
-26-06-30-bank-statement-commbank-everyday-1234.pdf
-25-11-14-driver-licence-nsw-jane-smith.pdf
-26-02-03-medical-report-sydney-clinic-blood-test.pdf
-26-07-03-unknown-document-unclassified.pdf
+26-06-30 CommBank Bank Statement Everyday 1234.pdf
+25-11-14 Jane Smith Driver Licence NSW.pdf
+26-02-03 Sydney Clinic Medical Report Blood Test.pdf
+26-07-06 Patricio Perpetua Driver License Victoria.pdf
+26-07-03 Unknown Document Unclassified.pdf
 ```
 
 ## Date Selection
@@ -143,7 +145,8 @@ node tools/pdf-context/extract_context.mjs \
 
 4. Build the proposed filename.
    - Apply the date rules first.
-   - Add issuer/provider when visible.
+   - Use human-readable Title Case words separated by spaces after the date.
+   - Add person/entity or issuer/provider when visible.
    - Add a safe identifier only when useful, such as account last four digits, licence state, patient name, claim number, or document reference.
    - Avoid full account numbers, full licence numbers, Medicare numbers, tax file numbers, or other high-risk identifiers.
 
