@@ -62,6 +62,7 @@ npx skills add @singleton-sd/skills --all
 |-------|-------------|
 | [`documents/pdf-content-renamer`](documents/pdf-content-renamer/SKILL.md) | Rename PDFs from document content with `YY-MM-DD` date-prefixed filenames via `@singleton-sd/ai-plattform-tools-pdf-context` |
 | [`documents/pdf-to-markdown`](documents/pdf-to-markdown/SKILL.md) | Convert PDFs to audit-ready Markdown with `@opendataloader/pdf` (Node.js) for AI analysis |
+| [`documents/pdf-shrink`](documents/pdf-shrink/SKILL.md) | Shrink PDFs locally from a file or folder with `minimal`/`optimal` presets via `@singleton-sd/ai-plattform-tools-pdf-shrink` |
 
 ### Compliance
 
