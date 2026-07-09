@@ -30,6 +30,7 @@ npx skills add @singleton-sd/skills --all
 | [`engineering/git-conventions`](engineering/git-conventions/SKILL.md) | Apply commit format, branch naming, and ticket linking conventions |
 | [`engineering/refactoring`](engineering/refactoring/SKILL.md) | Identify and apply targeted refactoring improvements |
 | [`engineering/repo-init`](engineering/repo-init/SKILL.md) | Initialize a repo with husky, commitlint, and release-it |
+| [`engineering/repo-init-npm-publish`](engineering/repo-init-npm-publish/SKILL.md) | Scaffold publishable npm packages and CLI tools with GitLab, CI, and release setup |
 | [`engineering/test-generation`](engineering/test-generation/SKILL.md) | Generate comprehensive, meaningful tests |
 
 ### Design
