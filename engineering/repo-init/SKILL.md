@@ -517,6 +517,30 @@ If the repo's `.gitignore` includes `*.lock`, add an exception so the lockfile i
 
 ---
 
+### Windows (PowerShell) — UTF-8 BOM breaks JSON in CI
+
+PowerShell `Set-Content -Encoding utf8` and `Out-File -Encoding utf8` write a **UTF-8 BOM** (`EF BB BF`) on Windows. That breaks `package.json` parsing in `release-it` and other Node JSON loaders:
+
+```text
+ERROR Unexpected token '﻿', "﻿{ "name"... is not valid JSON
+```
+
+**Do not** scaffold `package.json`, `.release-it.json`, or other JSON/MJS source files with PowerShell UTF-8 encoding.
+
+Prefer:
+
+- The editor Write tool or `git show` from a known-good template repo
+- UTF-8 **without** BOM:
+
+```powershell
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($path, $content, $utf8NoBom)
+```
+
+Before the first push, verify `package.json` starts with `{` (byte `123`), not BOM bytes `239 187 191`.
+
+---
+
 ## Files created summary
 
 ```

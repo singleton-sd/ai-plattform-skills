@@ -28,7 +28,7 @@ Use this skill when creating or updating a skill in this repository.
    - List ID: `901614473129` (also recorded in `config/clickup-defaults.json`)
    - Use an action-first, sentence-case name.
    - Include why the skill is needed and acceptance criteria.
-3. Use the task custom ID in commit messages.
+3. Use the task **custom ID** in commit messages (for example `AI-36`). If the user supplies a ticket ID, use that — never use ClickUp internal IDs like `86d3mw1pt` in commits.
 4. Set the task to the active working status when implementation starts.
    - Prefer `in progress` if the list supports it.
    - Use `in development` when `in progress` is not a valid status.

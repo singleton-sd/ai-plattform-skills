@@ -43,6 +43,8 @@ Reference existing tools for naming and layout:
 - `ai-plattform/tools/pdf-context`
 - `ai-plattform/tools/pdf-to-markdown`
 
+**Naming convention (ai-plattform PDF tools):** use the `pdf-<action>` prefix for CLI binaries, repo folders, and skills — for example `pdf-shrink`, `pdf-context`, `pdf-to-markdown`. npm package: `@singleton-sd/ai-plattform-tools-pdf-<action>`. Do not use reversed names like `shrink-pdf`.
+
 ---
 
 ## GitLab CLI gate — mandatory confirmation
@@ -137,7 +139,7 @@ git checkout -b main
 
 ### 2. Create `package.json`
 
-Use ESM (`"type": "module"`) — matches current tools.
+Use ESM (`"type": "module"`) — matches current tools. Write as **UTF-8 without BOM** (see [`engineering/repo-init`](../repo-init/SKILL.md) — PowerShell `Set-Content -Encoding utf8` adds a BOM that breaks `release-it` in CI).
 
 ```json
 {
@@ -382,7 +384,9 @@ See the [helper README](https://gitlab.com/singleton-sd/engineering/scripts/gitl
 
 ## First commit and branch
 
-Follow [`engineering/git-conventions`](../git-conventions/SKILL.md):
+Follow [`engineering/git-conventions`](../git-conventions/SKILL.md).
+
+**Default:** feature branch + MR:
 
 ```bash
 git checkout -b feature/<TICKET>-<slug>
@@ -391,7 +395,15 @@ git commit -m "feat: <TICKET> Scaffold <package-name> npm tool"
 git push -u origin feature/<TICKET>-<slug>
 ```
 
-Open an MR to `main`. Do not commit unless the user explicitly asks.
+**When the user asks to commit directly to `main`/`master`:** skip feature branches — commit on the default branch with the ticket in the message:
+
+```bash
+git checkout main   # or master
+git add .
+git commit -m "feat: <TICKET> Scaffold <package-name> npm tool"
+```
+
+Do not commit unless the user explicitly asks.
 
 ---
 
@@ -403,6 +415,7 @@ Open an MR to `main`. Do not commit unless the user explicitly asks.
 - [ ] Husky hooks run (`yarn prepare`, test a commit message)
 - [ ] `yarn test` passes smoke test
 - [ ] `yarn release` dry-run succeeds
+- [ ] `package.json` has no UTF-8 BOM (first byte is `{`, not `EF BB BF`)
 - [ ] Release credentials configured via `setup-git-release-credentials`
 - [ ] README documents npm registry install with correct `.npmrc` scope
 - [ ] `.env` is gitignored and not staged

@@ -129,3 +129,5 @@ pdf-shrink "./uploads/" --preset optimal --json
 
 Uses [`qpdf-compress`](https://www.npmjs.com/package/qpdf-compress) (Apache-2.0) — QPDF + mozjpeg embedded via npm prebuilds. No Ghostscript or qpdf OS installs.
 
+**Why not vert.sh or Ghostscript?** [VERT.sh](https://vert.sh/) has no PDF compress API/CLI today. Ghostscript and qpdf CLI require OS installs — poor fit for cross-platform npm pipelines. For npm-only Node.js compression, `qpdf-compress` is the preferred engine.
+
