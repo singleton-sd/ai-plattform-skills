@@ -1,7 +1,7 @@
 ---
 name: Backend
-description: Opinionated NestJS + PostgreSQL + Prisma backend guidelines for Singleton SD personal projects. Extends nodejs-backend-patterns with NestJS-specific module structure, Prisma conventions, DTO validation, and JWT auth patterns.
-tags: [engineering, backend, nestjs, postgresql, prisma, typescript, rest-api]
+description: Opinionated NestJS + SQL Server + Prisma backend guidelines for Singleton SD personal projects. Extends nodejs-backend-patterns with NestJS-specific module structure, Prisma conventions, DTO validation, and JWT auth patterns.
+tags: [engineering, backend, nestjs, sqlserver, prisma, typescript, rest-api]
 audience: [engineers]
 status: stable
 ---
@@ -32,7 +32,7 @@ Default to **NestJS** for any project that will outlive a prototype.
 |---|---|---|
 | Framework | NestJS | Opinionated structure, DI, decorators |
 | Language | TypeScript strict | Always |
-| Database | PostgreSQL | Reliable, relational, great JSON support |
+| Database | SQL Server | Primary relational store; strong tooling, T-SQL, enterprise-ready |
 | ORM | Prisma | Type-safe, great DX, auto-generated client |
 | Validation | class-validator + class-transformer | Native NestJS ValidationPipe integration |
 | Auth | @nestjs/jwt + @nestjs/passport | Standard NestJS auth ecosystem |
@@ -55,7 +55,7 @@ npm install nestjs-pino pino-http pino-pretty
 
 # Prisma
 npm install prisma @prisma/client
-npx prisma init --datasource-provider postgresql
+npx prisma init --datasource-provider sqlserver
 
 # Dev deps
 npm install -D @types/passport-jwt
@@ -161,7 +161,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlserver"
   url      = env("DATABASE_URL")
 }
 
@@ -175,6 +175,12 @@ model User {
 
   @@map("users")
 }
+```
+
+Example `DATABASE_URL`:
+
+```
+sqlserver://localhost:1433;database=my_api;user=sa;password=Your_password123;encrypt=true;trustServerCertificate=true
 ```
 
 - Use `cuid()` for IDs, not auto-increment integers — safe for distributed use
