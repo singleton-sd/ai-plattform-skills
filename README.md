@@ -27,6 +27,7 @@ npx skills add @singleton-sd/skills --all
 | Skill | Description |
 |-------|-------------|
 | [`engineering/code-review`](engineering/code-review/SKILL.md) | Review code for quality, correctness, and security |
+| [`engineering/fix-bugbot`](engineering/fix-bugbot/SKILL.md) | Fix Bugbot PR findings and reply on the review thread |
 | [`engineering/git-conventions`](engineering/git-conventions/SKILL.md) | Apply commit format, branch naming, and ticket linking conventions |
 | [`engineering/refactoring`](engineering/refactoring/SKILL.md) | Identify and apply targeted refactoring improvements |
 | [`engineering/repo-init`](engineering/repo-init/SKILL.md) | Initialize a repo with husky, commitlint, and release-it |
