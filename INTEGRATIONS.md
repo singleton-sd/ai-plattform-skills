@@ -6,6 +6,10 @@ MCP servers and AI tool connections for use with this skills repo.
 
 [Model Context Protocol (MCP)](https://modelcontextprotocol.io) lets AI assistants connect to external tools and services. The servers below are recommended for developers working in this repo.
 
+### Google Stitch
+
+Used by [`design/product-design`](design/product-design/SKILL.md) to generate and iterate UI designs. Configure the Stitch MCP in your agent (Cursor / Claude Code / Codex) — do not store API keys inside skills.
+
 ### ClickUp
 
 Official MCP server provided by ClickUp.
@@ -38,6 +42,12 @@ Reload Cursor, open **Settings → MCP**, start the ClickUp server, and complete
 [`config/clickup-defaults.json`](config/clickup-defaults.json). Use the
 **Skills Product Backlog** list when creating tasks for skill changes unless the
 user specifies another destination.
+
+### GitHub
+
+AI agents often use the [GitHub mirror](https://github.com/singleton-sd/ai-plattform-skills)
+for PRs and repo access. **GitLab remains the source of truth** for this
+platform; keep mirrors synchronized and prefer GitLab when they diverge.
 
 ## Agent skill adapters
 

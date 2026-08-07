@@ -29,6 +29,7 @@ npx skills add @singleton-sd/skills --all
 | [`engineering/code-review`](engineering/code-review/SKILL.md) | Review code for quality, correctness, and security |
 | [`engineering/fix-bugbot`](engineering/fix-bugbot/SKILL.md) | Fix Bugbot PR findings and reply on the review thread |
 | [`engineering/git-conventions`](engineering/git-conventions/SKILL.md) | Apply commit format, branch naming, and ticket linking conventions |
+| [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Implement an approved spec (any tracker), verify, and open a PR |
 | [`engineering/refactoring`](engineering/refactoring/SKILL.md) | Identify and apply targeted refactoring improvements |
 | [`engineering/repo-init`](engineering/repo-init/SKILL.md) | Initialize a repo with husky, commitlint, and release-it |
 | [`engineering/repo-init-npm-publish`](engineering/repo-init-npm-publish/SKILL.md) | Scaffold publishable npm packages and CLI tools with GitLab, CI, and release setup |
@@ -37,6 +38,7 @@ npx skills add @singleton-sd/skills --all
 ### Design
 | Skill | Description |
 |-------|-------------|
+| [`design/product-design`](design/product-design/SKILL.md) | Requirement → Google Stitch → approved Design Contract → ticket handoff |
 | [`design/ux-critique`](design/ux-critique/SKILL.md) | Evaluate UI and user flows against usability heuristics |
 | [`design/figma-token-review`](design/figma-token-review/SKILL.md) | Audit Figma design tokens for consistency and naming |
 
@@ -80,6 +82,64 @@ Regulatory filing workflows — one folder per body (e.g. `compliance/asic`, `co
 | [`operations/task-management`](operations/task-management/SKILL.md) | Create and manage tasks through a defined status workflow |
 | [`operations/task-driven-development`](operations/task-driven-development/SKILL.md) | Work through project-management tasks one at a time with scoped staging and commit messages |
 | [`operations/skill-authoring-workflow`](operations/skill-authoring-workflow/SKILL.md) | Create or update shared skills with task tracking and commit discipline |
+
+## AI product workflow
+
+Composable path from idea to pull request. Skills stay single-purpose; orchestrators call them instead of copying logic.
+
+```text
+Feature Idea
+      │
+      ▼
+product-design          (design/product-design)
+      │
+      ▼
+Google Stitch → Human Review → Design Contract
+      │
+      ▼
+draft-technical-tickets (product/draft-technical-tickets)
+      │
+      ▼
+ClickUp
+      │
+      ▼
+implement-feature       (engineering/implement-feature)
+      │
+      ▼
+Codex / Cursor / Claude Code → Pull Request
+```
+
+| Stage | Skill |
+|-------|-------|
+| Design → approval → Design Contract | [`design/product-design`](design/product-design/SKILL.md) |
+| Tickets, acceptance criteria, ClickUp | `product/draft-technical-tickets` (peer skill — owns ticket format; do not re-implement here) |
+| Spec → branch → verify → PR | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) |
+
+**Source of truth:** [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills). [GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a synchronized mirror for AI agents.
+
+### Future workflow compositions
+
+Build these as thin orchestrators that call the stages above (and peers):
+
+| Workflow | Typical stages |
+|----------|----------------|
+| `feature-from-idea` | product-design → draft-technical-tickets → implement-feature |
+| `bug-fix` | diagnose → ticket (optional) → implement-feature |
+| `api-first` | backend contract → draft-technical-tickets → implement-feature |
+| `greenfield-module` | product-design → draft-technical-tickets → implement-feature |
+| `landing-page` | product-design → draft-technical-tickets → implement-feature |
+| `design-system-update` | product-design / figma-token-review → draft-technical-tickets → implement-feature |
+
+### Future commands
+
+```text
+/design
+/ticket
+/implement
+/implement codex
+/implement cursor
+/implement claude
+```
 
 ## Skill format
 
