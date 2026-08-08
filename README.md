@@ -53,6 +53,7 @@ npx skills add @singleton-sd/skills --all
 |-------|-------------|
 | [`product/prd-generator`](product/prd-generator/SKILL.md) | Generate a PRD from a feature idea or brief |
 | [`product/backlog-refinement`](product/backlog-refinement/SKILL.md) | Refine raw backlog items into actionable stories |
+| [`product/draft-technical-tickets`](product/draft-technical-tickets/SKILL.md) | Draft repo-reconciled parent/child engineering tickets for approval |
 
 ### Writing
 | Skill | Description |
@@ -112,7 +113,7 @@ Codex / Cursor / Claude Code → Pull Request
 | Stage | Skill |
 |-------|-------|
 | Design → approval → Design Contract | [`design/product-design`](design/product-design/SKILL.md) |
-| Tickets, acceptance criteria, ClickUp | `product/draft-technical-tickets` (peer skill — owns ticket format; do not re-implement here) |
+| Tickets, acceptance criteria, ClickUp | [`product/draft-technical-tickets`](product/draft-technical-tickets/SKILL.md) (owns ticket format; do not re-implement here) |
 | Spec → branch → verify → PR | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) |
 
 **Source of truth:** [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills). [GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a synchronized mirror for AI agents.
