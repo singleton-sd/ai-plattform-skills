@@ -34,3 +34,9 @@ Finish with a one-paragraph summary verdict.
 - Only comment on what is in scope (the diff or the specified file)
 - Do not suggest style changes unless a linter config is provided
 - Distinguish between blocking issues and suggestions
+
+## Forms
+
+If the diff touches a form (schema, renderer, or host component), also apply
+the **form-ux** skill (`engineering/form-ux`) audit mode and report findings
+using its status vocabulary and evidence requirements.

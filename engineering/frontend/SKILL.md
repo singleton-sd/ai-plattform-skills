@@ -192,3 +192,9 @@ src/
 - Prefer Server Components by default in Next.js; only add `'use client'` when you need interactivity or browser APIs
 - Keep components small — if a component file exceeds ~150 lines, extract
 - One component per file, filename matches the component name (PascalCase)
+
+---
+
+## Forms
+
+Building or modifying a form? Apply the **form-ux** skill (`engineering/form-ux`) for submission validity, inline-validation timing, character limits, pre-fill, password UX, and forgiving-input rules — in addition to the state/stack conventions above.
