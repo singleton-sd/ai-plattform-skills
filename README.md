@@ -53,7 +53,8 @@ npx skills add @singleton-sd/skills --all
 | Skill | Description |
 |-------|-------------|
 | [`product/prd-generator`](product/prd-generator/SKILL.md) | Generate a PRD from a feature idea or brief |
-| [`product/backlog-refinement`](product/backlog-refinement/SKILL.md) | Refine raw backlog items into actionable stories |
+| [`product/backlog-refinement`](product/backlog-refinement/SKILL.md) | Refine ideas into decision-complete work and route discovery, delivery, and human gates |
+| [`product/idea-to-delivery`](product/idea-to-delivery/SKILL.md) | Turn a refined idea into an Epic, mergeable delivery slices, dependencies, and human gates |
 | [`product/draft-technical-tickets`](product/draft-technical-tickets/SKILL.md) | Draft repo-reconciled parent/child engineering tickets for approval |
 
 ### Writing

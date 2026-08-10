@@ -35,6 +35,9 @@ Parent Epic: <title/link or None>
 Goal:
 <observable outcome>
 
+User story (optional):
+As a [persona], I want [action] so that [outcome].
+
 Context:
 <why this matters>
 
@@ -70,7 +73,16 @@ For bugs also include Steps to reproduce, Expected behavior and Actual behavior.
 
 ## Agent-ready gate
 
-Only mark work ready for an implementation agent when acceptance criteria are testable, material decisions are resolved, dependencies are safe, the task is independently deliverable, relevant technical constraints are known, preview/seed expectations are defined when applicable, manual setup is represented explicitly, and no equivalent ticket already owns the work.
+Only mark work ready for an implementation agent when:
+
+- acceptance criteria are testable;
+- material product/architecture decisions are resolved;
+- dependencies are complete or explicitly safe to run in parallel;
+- the task is independently deliverable;
+- relevant technical constraints and likely paths/patterns are known when applicable;
+- preview/seed expectations are defined for user-facing changes or reproducible bugs;
+- any required manual setup is represented as an explicit human-operation task;
+- no duplicate/equivalent ticket already owns the work.
 
 If those conditions are not true, keep/refine the item in discovery/backlog instead of handing ambiguity to an implementation agent.
 

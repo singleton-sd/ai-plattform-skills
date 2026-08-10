@@ -42,10 +42,10 @@ Do not make a task agent-ready while material product/architecture questions rem
 
 ## Classification
 
-Keep workflow queues separate from architecture/domain classification. Prefer structured fields when the project supports them:
+Keep workflow queues separate from architecture/domain classification. Prefer structured fields when the project supports them. Use each project's vocabulary; the values below are common examples, not a global enum.
 
-- **Area:** Web App | API | Marketing | Infrastructure | Developer Experience | Cross-cutting
-- **Pillar:** project-defined domain capability (for example Tenant, Permissions, Notifications) | Platform | None
+- **Area:** project-defined technical/product surface (examples: Web App, API, Marketing, Infrastructure, Developer Experience, Cross-cutting)
+- **Pillar:** project-defined domain capability (examples: Tenant, Permissions, Notifications, Platform) or None
 - **Work Type:** Feature | Bug | Technical Debt | Discovery | Infrastructure | Documentation | Human Action
 - **Execution:** AI | Human | AI + Human
 
