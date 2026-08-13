@@ -175,6 +175,9 @@ Never:
 - Expand scope beyond the specification without asking
 - Invent API contracts or permissions
 - Skip verification when project scripts exist
+- Ship a new Prisma model or guarded Nest route in `poc-plattform-kit` without
+  registering `{resource}:{action}` — see
+  [`engineering/register-permissions`](engineering/register-permissions/SKILL.md)
 - Push to `main` / `master` for feature delivery
 - Store credentials in the skill or commit secrets
 
@@ -195,6 +198,7 @@ Suggested command surface (future):
 
 - [`engineering/git-conventions`](engineering/git-conventions/SKILL.md)
 - [`engineering/code-review`](engineering/code-review/SKILL.md)
+- [`engineering/register-permissions`](engineering/register-permissions/SKILL.md) — catalog OpenFGA permissions when adding tables/routes in poc-plattform-kit
 - [`operations/task-driven-development`](operations/task-driven-development/SKILL.md)
 - [`design/product-design`](design/product-design/SKILL.md) — upstream design stage
 - `product/draft-technical-tickets` — upstream ticket stage (format owner; do not duplicate)

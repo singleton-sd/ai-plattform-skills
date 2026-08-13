@@ -32,6 +32,7 @@ npx skills add @singleton-sd/skills --all
 | [`engineering/git-conventions`](engineering/git-conventions/SKILL.md) | Apply commit format, branch naming, and ticket linking conventions |
 | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Implement an approved spec (any tracker), verify, and open a PR |
 | [`engineering/refactoring`](engineering/refactoring/SKILL.md) | Identify and apply targeted refactoring improvements |
+| [`engineering/register-permissions`](engineering/register-permissions/SKILL.md) | Register OpenFGA catalog entries when adding Prisma models or guarded Nest routes in poc-plattform-kit |
 | [`engineering/repo-init`](engineering/repo-init/SKILL.md) | Initialize a repo with husky, commitlint, and release-it |
 | [`engineering/repo-init-npm-publish`](engineering/repo-init-npm-publish/SKILL.md) | Scaffold publishable npm packages and CLI tools with GitLab, CI, and release setup |
 | [`engineering/test-generation`](engineering/test-generation/SKILL.md) | Generate comprehensive, meaningful tests |

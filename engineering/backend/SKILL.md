@@ -393,6 +393,17 @@ export class AppModule {}
 
 ---
 
+## poc-plattform-kit permissions
+
+When adding a Prisma model or guarded Nest route in
+[`poc-plattform-kit`](https://github.com/singleton-sd/poc-plattform-kit), follow
+[`engineering/register-permissions`](engineering/register-permissions/SKILL.md):
+run `pnpm permissions:register` (dry-run, then `--apply`) and finish only when
+`pnpm permissions:check` is green. Project checklist:
+[docs/permissions.md](https://github.com/singleton-sd/poc-plattform-kit/blob/main/docs/permissions.md).
+
+---
+
 ## Rules
 
 - Never use `any` — use Prisma-generated types or explicit interfaces
