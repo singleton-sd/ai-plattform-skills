@@ -17,6 +17,8 @@ Use this skill when implementing work from a project-management list or workflow
    - List the relevant tasks and their statuses.
    - Read the selected task details before editing files.
    - Inspect repo conventions and existing implementation patterns.
+   - Do the work in a sibling git worktree from the latest default branch
+     ([`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md)).
 
 2. Work one task at a time:
    - Keep each implementation scoped to one ticket.

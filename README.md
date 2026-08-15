@@ -1,25 +1,27 @@
 # Singleton SD — Skills
 
+[![skills.sh](https://skills.sh/b/singleton-sd/ai-plattform-skills)](https://skills.sh/singleton-sd/ai-plattform-skills)
+
 Platform-agnostic skill library for AI agents. Skills work with any LLM that can follow a markdown prompt — Claude, GPT, Gemini, or your own agents.
 
-Part of the [`singleton-sd/ai-plattform`](https://gitlab.com/singleton-sd/ai-plattform) umbrella.
+Part of the [`singleton-sd/ai-plattform`](https://gitlab.com/singleton-sd/ai-plattform) umbrella. Public GitHub catalog: [`singleton-sd/ai-plattform-skills`](https://github.com/singleton-sd/ai-plattform-skills).
 
 ## Installing a skill
 
-**Via npm:**
 ```bash
-npx skills add @singleton-sd/skills/<category>/<skill-name>
+npx skills add singleton-sd/ai-plattform-skills --all
+npx skills add singleton-sd/ai-plattform-skills --skill isolated-worktree
 ```
 
-**Via GitLab (direct):**
+**Claude Code marketplace:**
+
 ```bash
-npx skills add gitlab:singleton-sd/ai-plattform/skills@<category>/<skill-name>
+claude plugin marketplace add singleton-sd/ai-plattform-skills
 ```
 
-**All skills at once:**
-```bash
-npx skills add @singleton-sd/skills --all
-```
+Canonical skills live at `<category>/<skill-name>/SKILL.md`. Claude and the Skills CLI discover them through `.claude-plugin/marketplace.json`. Adapter folders (`.agents/skills`, `.claude/skills`, `.cursor/skills`, `.github/skills`) are generated locally by `npm run link:skills` and are not committed.
+
+Ollama and similar local models have no skill folder — load a `SKILL.md` as a system prompt.
 
 ## Available skills
 
@@ -31,6 +33,7 @@ npx skills add @singleton-sd/skills --all
 | [`engineering/form-ux`](engineering/form-ux/SKILL.md) | Implement and audit forms against submission, validation-timing, character-limit, pre-fill, password, and formatting UX rules |
 | [`engineering/git-conventions`](engineering/git-conventions/SKILL.md) | Apply commit format, branch naming, and ticket linking conventions |
 | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Implement an approved spec (any tracker), verify, and open a PR |
+| [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md) | Implement and review in a sibling git worktree from the latest default branch |
 | [`engineering/refactoring`](engineering/refactoring/SKILL.md) | Identify and apply targeted refactoring improvements |
 | [`engineering/repo-init`](engineering/repo-init/SKILL.md) | Initialize a repo with husky, commitlint, and release-it |
 | [`engineering/repo-init-npm-publish`](engineering/repo-init-npm-publish/SKILL.md) | Scaffold publishable npm packages and CLI tools with GitLab, CI, and release setup |
@@ -118,7 +121,7 @@ Codex / Cursor / Claude Code → Pull Request
 | Tickets, acceptance criteria, ClickUp | [`product/draft-technical-tickets`](product/draft-technical-tickets/SKILL.md) (owns ticket format; do not re-implement here) |
 | Spec → branch → verify → PR | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) |
 
-**Source of truth:** [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills). [GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a synchronized mirror for AI agents.
+**Public catalog:** [GitHub](https://github.com/singleton-sd/ai-plattform-skills). Internal platform group: [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills).
 
 ### Future workflow compositions
 
@@ -175,7 +178,8 @@ Plain markdown instructions for the AI agent. Write as if briefing a smart colle
 1. Create a folder under the relevant category: `<category>/<skill-name>/`
 2. Add a `SKILL.md` with the frontmatter above and instructions in the body
 3. Add a row to the table in this README
-4. Open a merge request
+4. Run `npm run link:skills` and commit the updated `.claude-plugin/` catalog
+5. Open a pull request from a sibling worktree
 
 If the skill doesn't fit an existing category, propose a new one in the MR description.
 

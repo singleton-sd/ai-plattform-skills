@@ -1,6 +1,6 @@
 ---
 name: Git Conventions
-description: Apply Singleton SD git conventions — commit format, branch naming, and ticket linking
+description: Apply Singleton SD git conventions — commit format, branch naming, ticket linking, and sibling worktrees
 tags: [engineering, git, conventions, commits, workflow]
 audience: [engineers, tech-leads]
 status: stable
@@ -116,6 +116,25 @@ The `post-checkout` hook validates branch names on creation. Invalid branches ar
 
 ---
 
+## Isolated worktrees
+
+Implement and review on a **sibling** worktree created from the latest
+`origin/<default-branch>`. Detect the default branch from `origin/HEAD` (`master`
+or `main`); do not hardcode it.
+
+- Path sits next to the default checkout, for example
+  `<repo>/feature-SSDOP-42-dark-mode` beside `<repo>/main`.
+- Never nest `.worktrees/` (or any worktree) inside an existing checkout.
+- Never edit or push `main` / `master` for feature work.
+- Parent agents create the worktree **before** launching a subagent and pass
+  that path as the subagent working directory.
+- Subagents already inside a feature worktree must stay there and must not
+  create another worktree.
+
+Full procedure: [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md).
+
+---
+
 ## TypeScript filename conventions
 
 Staged `.ts` files must match one of these patterns:
@@ -149,6 +168,7 @@ Never manually edit the version in `package.json`. Run `yarn release` (dry-run) 
 ## Validation checklist
 
 Before pushing, verify:
+- [ ] Work happens in a sibling worktree, not on `main` / `master`
 - [ ] Branch name matches `feature/TICKET-NNN` or `hotfix/TICKET-NNN` or an allowed base branch
 - [ ] Commit subject is ≤ 50 chars, sentence-case, no period
 - [ ] Ticket number is present (in commit or auto-injected from branch)

@@ -9,3 +9,7 @@ config/asic-defaults.local.json
 .agents/skills/
 .claude/skills/
 .cursor/skills/
+.github/skills/
+
+# Never nest worktrees inside a checkout
+.worktrees/

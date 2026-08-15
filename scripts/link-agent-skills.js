@@ -18,18 +18,27 @@ const CATEGORY_DIRS = [
   'writing',
 ];
 
-const ADAPTER_ROOTS = ['.agents/skills', '.claude/skills', '.cursor/skills'];
+const ADAPTER_ROOTS = [
+  '.agents/skills',
+  '.claude/skills',
+  '.cursor/skills',
+  '.github/skills',
+];
 
 const EXCLUDED_DIR_NAMES = new Set([
   '.agents',
   '.claude',
+  '.claude-plugin',
   '.cursor',
   '.git',
+  '.github',
   '.husky',
   'node_modules',
   'scripts',
   'config',
 ]);
+
+const writeCatalog = process.argv.includes('--catalog');
 
 function isDirectory(entryPath) {
   try {
@@ -62,7 +71,7 @@ function discoverSkills() {
       skills.push({
         name: entry.name,
         category,
-        source: path.join(category, entry.name),
+        source: `${category}/${entry.name}`,
         sourceAbs: skillDir,
       });
     }
@@ -130,6 +139,71 @@ function syncAdapterRoot(adapterRoot, skills) {
   }
 }
 
+function catalogSkillPaths(skills) {
+  return [...skills]
+    .sort((a, b) => a.source.localeCompare(b.source))
+    .map((skill) => `./${skill.source}`);
+}
+
+function writeJson(filePath, value) {
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function writeMarketplaceCatalog(skills) {
+  const pluginDir = path.join(repoRoot, '.claude-plugin');
+  fs.mkdirSync(pluginDir, { recursive: true });
+
+  const skillPaths = catalogSkillPaths(skills);
+  const description =
+    'Platform-agnostic SKILL.md library for Cursor, Claude Code, Codex, and Copilot.';
+
+  const plugin = {
+    name: 'singleton-sd-skills',
+    displayName: 'Singleton SD Skills',
+    version: '0.1.0',
+    description,
+    author: {
+      name: 'Singleton SD',
+      url: 'https://github.com/singleton-sd',
+    },
+    homepage: 'https://github.com/singleton-sd/ai-plattform-skills',
+    repository: 'https://github.com/singleton-sd/ai-plattform-skills',
+    keywords: [
+      'agent-skills',
+      'claude-code',
+      'cursor',
+      'codex',
+      'github-copilot',
+    ],
+    strict: false,
+    skills: skillPaths,
+  };
+
+  const marketplace = {
+    name: 'singleton-sd-skills',
+    owner: {
+      name: 'Singleton SD',
+      url: 'https://github.com/singleton-sd',
+    },
+    metadata: {
+      description,
+      version: '0.1.0',
+    },
+    plugins: [
+      {
+        name: 'singleton-sd-skills',
+        description,
+        source: './',
+        strict: false,
+        skills: skillPaths,
+      },
+    ],
+  };
+
+  writeJson(path.join(pluginDir, 'plugin.json'), plugin);
+  writeJson(path.join(pluginDir, 'marketplace.json'), marketplace);
+}
+
 function main() {
   const skills = discoverSkills();
   detectCollisions(skills);
@@ -138,8 +212,15 @@ function main() {
     syncAdapterRoot(adapterRoot, skills);
   }
 
+  if (writeCatalog) {
+    writeMarketplaceCatalog(skills);
+  }
+
+  const catalogNote = writeCatalog
+    ? ' Wrote .claude-plugin marketplace catalog.'
+    : '';
   console.log(
-    `[singleton-sd/skills] Linked ${skills.length} skills into ${ADAPTER_ROOTS.join(' and ')}.`,
+    `[singleton-sd/skills] Linked ${skills.length} skills into ${ADAPTER_ROOTS.join(', ')}.${catalogNote}`,
   );
 }
 

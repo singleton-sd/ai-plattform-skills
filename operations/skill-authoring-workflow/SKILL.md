@@ -16,6 +16,7 @@ Use this skill when creating or updating a skill in this repository.
    - `operations/task-management`
    - `operations/task-driven-development`
    - `engineering/git-conventions`
+   - `engineering/isolated-worktree`
    - Any existing skill in the same category
 2. Infer requirements from the current conversation when the user has already described the workflow.
 3. Clarify only if the skill location, scope, or trigger scenarios are genuinely ambiguous.
@@ -35,6 +36,12 @@ Use this skill when creating or updating a skill in this repository.
 5. Do not mark the task complete when implementation is merely finished.
    - Mark it complete only when the user asks or when the user says to move to the next task.
 
+## Worktree
+
+Create or update skills from a sibling worktree of this repository, not on
+`master` / `main`. Follow
+[`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md).
+
 ## Authoring
 
 1. Create a folder using lowercase kebab-case:
@@ -49,7 +56,8 @@ Use this skill when creating or updating a skill in this repository.
 4. Keep `SKILL.md` focused on reusable procedure, not a transcript of one session.
 5. Use repo-root-relative paths in links (for example `config/clickup-defaults.json`,
    not `../../config/clickup-defaults.json`) so skills still resolve when tools read
-   them through `.agents/skills/`, `.claude/skills/`, or `.cursor/skills/` adapters.
+   them through `.agents/skills/`, `.claude/skills/`, `.cursor/skills/`, or
+   `.github/skills/` adapters.
 6. Choose a globally unique `<skill-name>` across all categories. Adapter folders use
    the flat skill name only.
 7. Capture recent learnings as durable rules, especially:
@@ -69,16 +77,22 @@ Use the existing row style:
 | [`operations/example-skill`](operations/example-skill/SKILL.md) | One-line description |
 ```
 
-## Agent Adapters
+## Agent Adapters and marketplace catalog
 
-After adding or renaming a skill, regenerate Codex and Cursor adapter links:
+After adding or renaming a skill, regenerate adapter links **and** the Claude
+marketplace catalog:
 
 ```bash
 npm run link:skills
 ```
 
-This rebuilds `.agents/skills/<skill-name>/`, `.claude/skills/<skill-name>/`, and
-`.cursor/skills/<skill-name>/` as directory links back to the canonical skill folder.
+This rebuilds gitignored adapters
+(`.agents/skills/`, `.claude/skills/`, `.cursor/skills/`, `.github/skills/`)
+and writes committed `.claude-plugin/marketplace.json` plus
+`.claude-plugin/plugin.json`. Stage those catalog files with the skill.
+
+`npm install` / `prepare` only rebuilds adapters (does not rewrite the
+committed catalog).
 
 ## Validation
 
