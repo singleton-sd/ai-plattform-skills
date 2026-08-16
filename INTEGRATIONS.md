@@ -43,17 +43,29 @@ Reload Cursor, open **Settings → MCP**, start the ClickUp server, and complete
 **Skills Product Backlog** list when creating tasks for skill changes unless the
 user specifies another destination.
 
+### GitLab
+
+**Source of truth** for this skills repo:
+[`gitlab.com/singleton-sd/ai-plattform/skills`](https://gitlab.com/singleton-sd/ai-plattform/skills).
+
+Open merge requests against GitLab `master`. Prefer GitLab when GitHub diverges.
+
+```bash
+npx skills add https://gitlab.com/singleton-sd/ai-plattform/skills --all
+```
+
 ### GitHub
 
-The public catalog is [`singleton-sd/ai-plattform-skills`](https://github.com/singleton-sd/ai-plattform-skills).
-Install from GitHub:
+[GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a synchronized
+public mirror so skills.sh and Claude Code marketplace can install with
+`owner/repo` shorthand:
 
 ```bash
 npx skills add singleton-sd/ai-plattform-skills --all
 claude plugin marketplace add singleton-sd/ai-plattform-skills
 ```
 
-GitLab remains the broader [`ai-plattform`](https://gitlab.com/singleton-sd/ai-plattform) umbrella. Prefer the remote the target project treats as authoritative.
+Do not merge feature work on GitHub first. Merge on GitLab, then sync the mirror.
 
 ## Agent skill adapters
 

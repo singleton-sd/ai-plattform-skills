@@ -103,6 +103,9 @@ Before reporting back:
 3. Ignore pre-existing linter warnings outside the touched lines unless the user asks for cleanup.
 4. Check git status in the skills repository explicitly with `git -C`.
 
+Ship from a sibling worktree as a **GitLab merge request** against
+`gitlab.com/singleton-sd/ai-plattform/skills`. Do not merge on GitHub first.
+
 ## Completion Response
 
 When finished, report:
@@ -113,6 +116,8 @@ Created [TICKET-ID]: [task name]
 Changed files:
 - category/skill-name/SKILL.md
 - README.md
+- .claude-plugin/marketplace.json
+- .claude-plugin/plugin.json
 
 Status:
 Task is in progress and ready for review.

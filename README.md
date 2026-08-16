@@ -4,18 +4,23 @@
 
 Platform-agnostic skill library for AI agents. Skills work with any LLM that can follow a markdown prompt — Claude, GPT, Gemini, or your own agents.
 
-Part of the [`singleton-sd/ai-plattform`](https://gitlab.com/singleton-sd/ai-plattform) umbrella. Public GitHub catalog: [`singleton-sd/ai-plattform-skills`](https://github.com/singleton-sd/ai-plattform-skills).
+Part of the [`singleton-sd/ai-plattform`](https://gitlab.com/singleton-sd/ai-plattform) umbrella.
+
+**Source of truth:** [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills). [GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a public mirror for skills.sh and Claude Code marketplace installs.
 
 ## Installing a skill
 
+**GitLab (canonical):**
+
 ```bash
-npx skills add singleton-sd/ai-plattform-skills --all
-npx skills add singleton-sd/ai-plattform-skills --skill isolated-worktree
+npx skills add https://gitlab.com/singleton-sd/ai-plattform/skills --all
+npx skills add https://gitlab.com/singleton-sd/ai-plattform/skills --skill isolated-worktree
 ```
 
-**Claude Code marketplace:**
+**GitHub mirror (skills.sh / Claude Code):**
 
 ```bash
+npx skills add singleton-sd/ai-plattform-skills --all
 claude plugin marketplace add singleton-sd/ai-plattform-skills
 ```
 
@@ -121,7 +126,7 @@ Codex / Cursor / Claude Code → Pull Request
 | Tickets, acceptance criteria, ClickUp | [`product/draft-technical-tickets`](product/draft-technical-tickets/SKILL.md) (owns ticket format; do not re-implement here) |
 | Spec → branch → verify → PR | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) |
 
-**Public catalog:** [GitHub](https://github.com/singleton-sd/ai-plattform-skills). Internal platform group: [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills).
+**Source of truth:** [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills). [GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a synchronized public mirror.
 
 ### Future workflow compositions
 
@@ -179,7 +184,7 @@ Plain markdown instructions for the AI agent. Write as if briefing a smart colle
 2. Add a `SKILL.md` with the frontmatter above and instructions in the body
 3. Add a row to the table in this README
 4. Run `npm run link:skills` and commit the updated `.claude-plugin/` catalog
-5. Open a pull request from a sibling worktree
+5. Open a GitLab merge request from a sibling worktree
 
 If the skill doesn't fit an existing category, propose a new one in the MR description.
 
