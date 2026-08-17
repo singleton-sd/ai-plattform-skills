@@ -38,7 +38,7 @@ variables:
   GLOBAL_IMAGE_TAG: "22-alpine"
   ENABLE_RELEASE_JOB: "true"
   ENABLE_RELEASE_PUBLISH_ALL: "true"
-  NPMJS_SCOPE: "singletonsd"
+  NPMJS_SCOPE: "singleton-sd"
   PAGES_ENABLED: "false"
 
 stages:
@@ -53,7 +53,7 @@ stages:
 
 Full snippets: `examples/.gitlab-ci-example-main.yml`, `examples/.gitlab-ci-example-common.yml`, `examples/.gitlab-ci-example-release.yml`.
 
-The consumer must define `yarn release:ci` (usually release-it). Package name is always `package.json` `"name"` on every registry. Scopes (`RELEASE_GROUP_NAME`, `NPMJS_SCOPE`) must match that name.
+The consumer must define `yarn release:ci` (usually release-it). Package name is always `package.json` `"name"` on every registry. Scopes (`RELEASE_GROUP_NAME`, `NPMJS_SCOPE`) must match that name. The npm org/scope is `@singleton-sd`; the GitLab include path stays `singletonsd/pipelines/npm` (project path, not npm scope).
 
 ## Publish flags
 
@@ -64,7 +64,19 @@ The consumer must define `yarn release:ci` (usually release-it). Package name is
 | `ENABLE_RELEASE_PUBLISH_GITLAB=true` | GitLab only |
 | `ENABLE_RELEASE_PUBLISH_NPMJS=true` | npmjs only (`npm publish --access $NPMJS_ACCESS`) |
 
-`NPMJS_ACCESS` defaults to `public`. `NPMJS_SCOPE` defaults to `RELEASE_GROUP_NAME`.
+`NPMJS_ACCESS` defaults to `public`. `NPMJS_SCOPE` defaults to `RELEASE_GROUP_NAME`. Example consumer org: `singleton-sd`.
+
+### Resolution (union / OR, not exclusive winner)
+
+1. If `ENABLE_RELEASE_PUBLISH_ALL == "true"` → publish GitLab **and** npmjs. `_GITLAB` / `_NPMJS` / legacy cannot turn a target off while `_ALL` is true.
+2. Else GitLab if `ENABLE_RELEASE_PUBLISH_GITLAB == "true"`; npmjs if `ENABLE_RELEASE_PUBLISH_NPMJS == "true"` (both can be true; that equals `_ALL`).
+3. Legacy `ENABLE_RELEASE_PUBLISH == "true"` applies **only** when `_ALL`, `_GITLAB`, and `_NPMJS` are all not `"true"` → GitLab only.
+4. Any new flag (`_ALL`, `_GITLAB`, or `_NPMJS` set to `"true"`) **suppresses** the legacy alias even if `ENABLE_RELEASE_PUBLISH` is also `"true"`.
+
+Examples:
+
+- `_NPMJS=true` + `ENABLE_RELEASE_PUBLISH=true` → npmjs only (legacy off)
+- `_ALL=true` + `_NPMJS=false` → still both (no per-target off-switch)
 
 ## Secrets (masked CI variables, never in YAML)
 

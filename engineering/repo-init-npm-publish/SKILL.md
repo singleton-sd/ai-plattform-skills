@@ -246,7 +246,8 @@ release_job:
   dependencies: []
 ```
 
-Publish flags (full table in [`engineering/pipelines-npm`](../pipelines-npm/SKILL.md)):
+Publish flags (full table and flag precedence in
+[`engineering/pipelines-npm`](../pipelines-npm/SKILL.md#publish-flags)):
 
 - `ENABLE_RELEASE_PUBLISH_ALL: 'true'` — GitLab Package Registry and npmjs.org (needs masked `NPMJS_TOKEN`)
 - `ENABLE_RELEASE_PUBLISH: 'true'` — legacy GitLab-only
