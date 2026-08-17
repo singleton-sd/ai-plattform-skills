@@ -16,6 +16,7 @@ This skill composes:
 
 - [`engineering/repo-init`](../repo-init/SKILL.md) — husky, commitlint, release-it
 - [`engineering/git-conventions`](../git-conventions/SKILL.md) — commits, branches, tickets
+- [`engineering/pipelines-npm`](../pipelines-npm/SKILL.md) — shared GitLab CI include and publish flags
 - [`engineering/scripts/gitlab-credentials-helper`](https://gitlab.com/singleton-sd/engineering/scripts/gitlab-credentials-helper) — one-time release CI credentials
 
 ---
@@ -222,10 +223,9 @@ include:
 variables:
   GLOBAL_IMAGE_NAME: 'node'
   GLOBAL_IMAGE_TAG: '22-alpine'
-  ORIGINAL_REPOSITORY: '<GITLAB_PROJECT_PATH>'
   ENABLE_RELEASE_JOB: 'true'
-  ENABLE_RELEASE_PUBLISH: 'true'
-  NODE_COMMON_RELEASE_TRIGGER_PIPELINE: 'true'
+  ENABLE_RELEASE_PUBLISH_ALL: 'true'
+  NPMJS_SCOPE: 'singleton-sd'
   PAGES_ENABLED: 'false'
 
 stages:
@@ -246,7 +246,14 @@ release_job:
   dependencies: []
 ```
 
-Set `ENABLE_RELEASE_PUBLISH: 'false'` only when the package must not publish to npm.
+Publish flags (full table and flag precedence in
+[`engineering/pipelines-npm`](../pipelines-npm/SKILL.md#publish-flags)):
+
+- `ENABLE_RELEASE_PUBLISH_ALL: 'true'` — GitLab Package Registry and npmjs.org (needs masked `NPMJS_TOKEN`)
+- `ENABLE_RELEASE_PUBLISH: 'true'` — legacy GitLab-only
+- `ENABLE_RELEASE_PUBLISH: 'false'` — version/tag only, no `npm publish`
+
+Also set masked `SSH_PRIVATE_KEY` for the release commit/tag. Package name is `package.json` `"name"` on every registry.
 
 ### 6. Wire git remote
 

@@ -33,6 +33,7 @@
     "./engineering/git-conventions",
     "./engineering/implement-feature",
     "./engineering/isolated-worktree",
+    "./engineering/pipelines-npm",
     "./engineering/refactoring",
     "./engineering/repo-init",
     "./engineering/repo-init-npm-publish",
