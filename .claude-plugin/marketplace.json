@@ -1,0 +1,52 @@
+{
+  "name": "singleton-sd-skills",
+  "owner": {
+    "name": "Singleton SD",
+    "url": "https://github.com/singleton-sd"
+  },
+  "metadata": {
+    "description": "Platform-agnostic SKILL.md library for Cursor, Claude Code, Codex, and Copilot.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "singleton-sd-skills",
+      "description": "Platform-agnostic SKILL.md library for Cursor, Claude Code, Codex, and Copilot.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./compliance/asic",
+        "./design/figma-token-review",
+        "./design/product-design",
+        "./design/ux-critique",
+        "./documents/pdf-content-renamer",
+        "./documents/pdf-shrink",
+        "./documents/pdf-to-markdown",
+        "./engineering/backend",
+        "./engineering/code-review",
+        "./engineering/fix-bugbot",
+        "./engineering/form-ux",
+        "./engineering/frontend",
+        "./engineering/git-conventions",
+        "./engineering/implement-feature",
+        "./engineering/isolated-worktree",
+        "./engineering/refactoring",
+        "./engineering/repo-init",
+        "./engineering/repo-init-npm-publish",
+        "./engineering/test-generation",
+        "./marketing/blog-post-generator",
+        "./marketing/seo-analysis",
+        "./operations/skill-authoring-workflow",
+        "./operations/task-driven-development",
+        "./operations/task-management",
+        "./product/backlog-refinement",
+        "./product/draft-technical-tickets",
+        "./product/idea-to-delivery",
+        "./product/prd-generator",
+        "./writing/summarization",
+        "./writing/tone-adjustment",
+        "./writing/translation"
+      ]
+    }
+  ]
+}

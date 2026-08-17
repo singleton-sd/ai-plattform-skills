@@ -1,20 +1,21 @@
 {
   "name": "@singleton-sd/skills",
   "version": "0.1.0",
-  "description": "Internal AI agent skills for Singleton SD",
+  "description": "Public AI agent skills for Singleton SD (SKILL.md)",
   "keywords": [
     "skills",
     "ai-agents",
     "llm",
     "prompts",
     "singleton-sd",
-    "platform-agnostic"
+    "platform-agnostic",
+    "agent-skills"
   ],
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
     "postinstall": "node scripts/postinstall.js",
-    "link:skills": "node scripts/link-agent-skills.js",
+    "link:skills": "node scripts/link-agent-skills.js --catalog",
     "prepare": "node scripts/link-agent-skills.js && husky",
     "release": "release-it -VV --dry-run",
     "release:ci": "release-it --ci"

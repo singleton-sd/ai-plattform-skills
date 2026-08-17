@@ -43,31 +43,54 @@ Reload Cursor, open **Settings → MCP**, start the ClickUp server, and complete
 **Skills Product Backlog** list when creating tasks for skill changes unless the
 user specifies another destination.
 
+### GitLab
+
+**Source of truth** for this skills repo:
+[`gitlab.com/singleton-sd/ai-plattform/skills`](https://gitlab.com/singleton-sd/ai-plattform/skills).
+
+Open merge requests against GitLab `master`. Prefer GitLab when GitHub diverges.
+
+```bash
+npx skills add https://gitlab.com/singleton-sd/ai-plattform/skills --all
+```
+
 ### GitHub
 
-AI agents often use the [GitHub mirror](https://github.com/singleton-sd/ai-plattform-skills)
-for PRs and repo access. **GitLab remains the source of truth** for this
-platform; keep mirrors synchronized and prefer GitLab when they diverge.
+[GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a synchronized
+public mirror so skills.sh and Claude Code marketplace can install with
+`owner/repo` shorthand:
+
+```bash
+npx skills add singleton-sd/ai-plattform-skills --all
+claude plugin marketplace add singleton-sd/ai-plattform-skills
+```
+
+Do not merge feature work on GitHub first. Merge on GitLab, then sync the mirror.
 
 ## Agent skill adapters
 
-Canonical skills live under `<category>/<skill-name>/SKILL.md`. Codex, Claude Code,
-and Cursor discover skills from flat adapter folders that link back to those sources:
+Canonical skills live under `<category>/<skill-name>/SKILL.md`. Agents discover
+a flat view through generated adapters:
 
 ```
-.agents/skills/<skill-name>/   →  <category>/<skill-name>/
-.claude/skills/<skill-name>/   →  <category>/<skill-name>/
-.cursor/skills/<skill-name>/   →  <category>/<skill-name>/
+.agents/skills/<skill-name>/   →  <category>/<skill-name>/   (Codex, Gemini, Copilot)
+.claude/skills/<skill-name>/   →  <category>/<skill-name>/   (Claude Code)
+.cursor/skills/<skill-name>/   →  <category>/<skill-name>/   (Cursor)
+.github/skills/<skill-name>/   →  <category>/<skill-name>/   (VS Code Copilot)
 ```
 
-Regenerate adapters after adding or renaming a skill:
+Claude Code and `npx skills add` also read committed
+[`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json), which lists
+every canonical skill path so category folders do not need `--full-depth`.
+
+Regenerate adapters **and** the marketplace catalog after adding or renaming a skill:
 
 ```bash
 npm run link:skills
 ```
 
-Adapters are also rebuilt automatically on `npm install` via the `prepare` hook.
-The adapter folders are gitignored — only the canonical skill files are committed.
+`npm install` / `prepare` rebuilds adapters only. Adapter folders are gitignored —
+commit the canonical skill files plus `.claude-plugin/` catalog updates.
 
 When authoring skills, use repo-root-relative paths (for example
 `config/clickup-defaults.json`, not `../../config/clickup-defaults.json`) so
@@ -75,6 +98,10 @@ links still resolve when a tool reads the skill through an adapter folder.
 
 Skill names must be globally unique across categories because adapter folders
 use the flat `<skill-name>` form.
+
+Nested worktrees inside a checkout (for example `.worktrees/` under `main`)
+break adapter junctions, especially on Windows. See
+[`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md).
 
 ## Adding an integration
 

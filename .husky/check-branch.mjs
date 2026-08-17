@@ -1,15 +1,8 @@
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { execSync } from 'child_process';
 
-const headContent = readFileSync(resolve('.git', 'HEAD'), 'utf-8').trim();
-const branchMatch = headContent.match(/^ref: refs\/heads\/(.+)$/);
-
-if (!branchMatch) {
-  console.error('Error: Unable to determine the current branch.');
-  process.exit(1);
-}
-
-const branch = branchMatch[1];
+const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+  encoding: 'utf8',
+}).trim();
 
 const valid =
   ['master', 'main', 'develop', 'design'].includes(branch) ||

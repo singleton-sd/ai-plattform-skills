@@ -48,7 +48,7 @@ Implement feature progress:
 - [ ] 3. Read project guidance
 - [ ] 4. Inspect nearby code
 - [ ] 5. Create an implementation plan
-- [ ] 6. Create a branch
+- [ ] 6. Create a sibling worktree and branch
 - [ ] 7. Implement
 - [ ] 8. Run lint, typecheck, tests, build
 - [ ] 9. Review against acceptance criteria
@@ -84,7 +84,8 @@ In the target repository, read when present:
 - Repository docs relevant to the change (`README`, `DESIGN.md`, `docs/`)
 
 Also apply Singleton SD skills that apply to the change (for example
-`engineering/git-conventions`, `engineering/frontend`, `engineering/backend`).
+`engineering/isolated-worktree`, `engineering/git-conventions`,
+`engineering/frontend`, `engineering/backend`).
 
 ### 4. Inspect nearby code
 
@@ -108,16 +109,21 @@ Share a short plan before large edits:
 
 For tiny, unambiguous changes, a one-paragraph plan is enough.
 
-### 6. Create a branch
+### 6. Create a sibling worktree and branch
 
-Follow [`engineering/git-conventions`](engineering/git-conventions/SKILL.md):
+Follow [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md)
+and [`engineering/git-conventions`](engineering/git-conventions/SKILL.md):
 
 ```text
 feature/TICKET-NUMBER[-optional-slug]
 ```
 
-Use a dedicated worktree when the team's rules require it. Never implement on
-`main` / `master` for feature work.
+Fetch origin, fast-forward the default-branch checkout if it is clean, then
+create a **sibling** worktree from `origin/<default>`. Never implement on
+`main` / `master`. Never nest a worktree inside an existing checkout.
+
+If launching a subagent, create the worktree first and start the subagent with
+cwd set to that path.
 
 ### 7. Implement
 
@@ -176,6 +182,7 @@ Never:
 - Invent API contracts or permissions
 - Skip verification when project scripts exist
 - Push to `main` / `master` for feature delivery
+- Edit the default-branch checkout or nest a worktree inside it
 - Store credentials in the skill or commit secrets
 
 ## Composition
@@ -193,6 +200,7 @@ Suggested command surface (future):
 
 ## Related skills
 
+- [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md)
 - [`engineering/git-conventions`](engineering/git-conventions/SKILL.md)
 - [`engineering/code-review`](engineering/code-review/SKILL.md)
 - [`operations/task-driven-development`](operations/task-driven-development/SKILL.md)
