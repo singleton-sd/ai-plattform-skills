@@ -1,10 +1,20 @@
+#!/bin/sh
+
+# Only proceed if this is a branch checkout (not a file checkout).
+# Worktree add/restore is a file checkout: skip before loading Node so
+# nvm-windows is never consulted on those paths.
+if [ "$3" -eq 0 ]; then
+  echo "ℹ️ File checkout detected. Skipping branch validation."
+  exit 0
+fi
+
 . "$(dirname "$0")/husky-use-node.sh"
 
 BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
-PREVIOUS_BRANCH=$(git rev-parse --symbolic-full-name --abbrev-ref=loose @{-1})
+PREVIOUS_BRANCH=$(git rev-parse --symbolic-full-name --abbrev-ref=loose @{-1} 2>/dev/null)
 
-if [ -z "$PREVIOUS_BRANCH" ]; then
-    PREVIOUS_BRANCH="main"
+if [ -z "$PREVIOUS_BRANCH" ] || ! git rev-parse --verify "$PREVIOUS_BRANCH" >/dev/null 2>&1; then
+    PREVIOUS_BRANCH="master"
     echo "⚠️ Unable to determine the previous branch. Falling back to '$PREVIOUS_BRANCH'."
 fi
 
