@@ -4,6 +4,10 @@
 # Never call nvm.exe: nvm-windows updates a symlink and triggers UAC.
 # Never npm install -g yarn from a git hook.
 
+node_ready() {
+  return 0 2>/dev/null || :
+}
+
 win_to_posix() {
   if command -v cygpath >/dev/null 2>&1; then
     cygpath -u "$1"
@@ -14,7 +18,7 @@ win_to_posix() {
 
 nvmrc_version() {
   if [ -f .nvmrc ]; then
-    tr -d '[:space:]v\r' < .nvmrc
+    sed 's/^v//; s/[[:space:]]//g; s/\r//' < .nvmrc
   fi
 }
 
@@ -28,7 +32,7 @@ if [ -s "$HOME/.nvm/nvm.sh" ]; then
   # shellcheck disable=SC1091
   . "$NVM_DIR/nvm.sh"
   nvm use >/dev/null
-  return 0 2>/dev/null || :
+  node_ready
 fi
 
 VERSION=$(nvmrc_version)
@@ -38,7 +42,7 @@ if [ -n "${NVM_HOME:-}" ] && [ -n "$VERSION" ]; then
   NODE_DIR="$(win_to_posix "$NVM_HOME")/v$VERSION"
   if path_has_node "$NODE_DIR"; then
     export PATH="$NODE_DIR:$PATH"
-    return 0 2>/dev/null || :
+    node_ready
   fi
 fi
 
@@ -47,7 +51,7 @@ if [ -n "${NVM_SYMLINK:-}" ]; then
   NODE_DIR="$(win_to_posix "$NVM_SYMLINK")"
   if path_has_node "$NODE_DIR"; then
     export PATH="$NODE_DIR:$PATH"
-    return 0 2>/dev/null || :
+    node_ready
   fi
 fi
 
@@ -56,12 +60,12 @@ if [ -n "${LOCALAPPDATA:-}" ]; then
   NODE_DIR="$(win_to_posix "$LOCALAPPDATA")/Programs/nodejs"
   if path_has_node "$NODE_DIR"; then
     export PATH="$NODE_DIR:$PATH"
-    return 0 2>/dev/null || :
+    node_ready
   fi
 fi
 
 if command -v node >/dev/null 2>&1; then
-  return 0 2>/dev/null || :
+  node_ready
 fi
 
 echo "⚠️  Node.js not found. Install Node or nvm, then retry."
