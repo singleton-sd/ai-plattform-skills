@@ -33,17 +33,23 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 ### Engineering
 | Skill | Description |
 |-------|-------------|
+| [`engineering/backend`](engineering/backend/SKILL.md) | NestJS + SQL Server + Prisma backend guidelines |
 | [`engineering/code-review`](engineering/code-review/SKILL.md) | Review code for quality, correctness, and security |
 | [`engineering/fix-bugbot`](engineering/fix-bugbot/SKILL.md) | Fix Bugbot PR findings and reply on the review thread |
 | [`engineering/form-ux`](engineering/form-ux/SKILL.md) | Implement and audit forms against submission, validation-timing, character-limit, pre-fill, password, and formatting UX rules |
+| [`engineering/forward-email`](engineering/forward-email/SKILL.md) | Provision and diagnose Forward Email domains, DNS, aliases, and tokens |
+| [`engineering/frontend`](engineering/frontend/SKILL.md) | React/Next.js frontend guidelines |
 | [`engineering/git-conventions`](engineering/git-conventions/SKILL.md) | Apply commit format, branch naming, and ticket linking conventions |
 | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Implement an approved spec (any tracker), verify, and open a PR |
 | [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md) | Implement and review in a sibling git worktree from the latest default branch |
-| [`engineering/refactoring`](engineering/refactoring/SKILL.md) | Identify and apply targeted refactoring improvements |
-| [`engineering/route53-subdomains`](engineering/route53-subdomains/SKILL.md) | Create/update/delete Route 53 DNS records for project subdomains using Key Vault agent credentials |
-| [`engineering/repo-init`](engineering/repo-init/SKILL.md) | Initialize a repo with husky, commitlint, and release-it |
 | [`engineering/pipelines-npm`](engineering/pipelines-npm/SKILL.md) | Include singletonsd/pipelines/npm GitLab CI and configure GitLab/npmjs publish |
+| [`engineering/refactoring`](engineering/refactoring/SKILL.md) | Identify and apply targeted refactoring improvements |
+| [`engineering/register-permissions`](engineering/register-permissions/SKILL.md) | Register OpenFGA / ReBAC permission catalog entries |
+| [`engineering/repo-init`](engineering/repo-init/SKILL.md) | Initialize a repo with husky, commitlint, and release-it |
 | [`engineering/repo-init-npm-publish`](engineering/repo-init-npm-publish/SKILL.md) | Scaffold publishable npm packages and CLI tools with GitLab, CI, and release setup |
+| [`engineering/route53-subdomains`](engineering/route53-subdomains/SKILL.md) | Create/update/delete Route 53 DNS records for project subdomains using Key Vault agent credentials |
+| [`engineering/schema-driven-forms`](engineering/schema-driven-forms/SKILL.md) | Build forms with Zod → JSON Schema → JSON Forms and token renderers |
+| [`engineering/storybook`](engineering/storybook/SKILL.md) | Storybook stories and Chromatic snapshot workflow |
 | [`engineering/test-generation`](engineering/test-generation/SKILL.md) | Generate comprehensive, meaningful tests |
 
 ### Design
@@ -63,9 +69,12 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 | Skill | Description |
 |-------|-------------|
 | [`product/prd-generator`](product/prd-generator/SKILL.md) | Generate a PRD from a feature idea or brief |
+| [`product/refine-idea`](product/refine-idea/SKILL.md) | Shape a raw idea before requirements discovery |
+| [`product/discover-requirements`](product/discover-requirements/SKILL.md) | Turn a refined idea into decision-complete requirements |
+| [`product/discover-public-apis`](product/discover-public-apis/SKILL.md) | Brainstorm externally-enabled capabilities via public API catalogs |
 | [`product/backlog-refinement`](product/backlog-refinement/SKILL.md) | Refine ideas into decision-complete work and route discovery, delivery, and human gates |
 | [`product/idea-to-delivery`](product/idea-to-delivery/SKILL.md) | Turn a refined idea into an Epic, mergeable delivery slices, dependencies, and human gates |
-| [`product/draft-technical-tickets`](product/draft-technical-tickets/SKILL.md) | Draft repo-reconciled parent/child engineering tickets for approval |
+| [`product/draft-technical-tickets`](product/draft-technical-tickets/SKILL.md) | Draft repo-reconciled parent/child host engineering issues for approval |
 
 ### Writing
 | Skill | Description |
@@ -92,41 +101,36 @@ Regulatory filing workflows — one folder per body (e.g. `compliance/asic`, `co
 ### Operations
 | Skill | Description |
 |-------|-------------|
-| [`operations/task-management`](operations/task-management/SKILL.md) | Create and manage tasks through a defined status workflow |
-| [`operations/task-driven-development`](operations/task-driven-development/SKILL.md) | Work through project-management tasks one at a time with scoped staging and commit messages |
+| [`operations/task-management`](operations/task-management/SKILL.md) | Create and manage host issues and optional ClickUp product/tracking tickets |
+| [`operations/task-driven-development`](operations/task-driven-development/SKILL.md) | Implement one host issue at a time with scoped staging and commit messages |
+| [`operations/agent-orchestration`](operations/agent-orchestration/SKILL.md) | Coordinate multiple agents across issues and worktrees |
+| [`operations/pr-agent-wake`](operations/pr-agent-wake/SKILL.md) | Fix an existing PR/MR after CI or review feedback |
+| [`operations/create-tracking-ticket`](operations/create-tracking-ticket/SKILL.md) | Create a ClickUp tracking ticket for ad-hoc work |
 | [`operations/skill-authoring-workflow`](operations/skill-authoring-workflow/SKILL.md) | Create or update shared skills with task tracking and commit discipline |
+
+## Tracker model
+
+| System | Owns |
+|--------|------|
+| **ClickUp** | Product features + optional tracking tickets |
+| **GitHub Issues** | Engineering work when the project is on GitHub |
+| **GitLab Issues** | Engineering work when the project is on GitLab |
+
+Profiles: [`config/tracker-profiles/`](config/tracker-profiles/README.md). Consumer repos set `.skills/profile` (`engineeringHost`: `github` | `gitlab`).
 
 ## AI product workflow
 
 Composable path from idea to pull request. Skills stay single-purpose; orchestrators call them instead of copying logic.
 
 ```text
-Feature Idea
-      │
-      ▼
-product-design          (design/product-design)
-      │
-      ▼
-Google Stitch → Human Review → Design Contract
-      │
-      ▼
-draft-technical-tickets (product/draft-technical-tickets)
-      │
-      ▼
-ClickUp
-      │
-      ▼
-implement-feature       (engineering/implement-feature)
-      │
-      ▼
-Codex / Cursor / Claude Code → Pull Request
+Feature idea (ClickUp or conversation)
+      → refine-idea → discover-requirements
+      → backlog-refinement / idea-to-delivery
+      → draft-technical-tickets → GitHub or GitLab issues
+      → task-driven-development / implement-feature → PR/MR
 ```
 
-| Stage | Skill |
-|-------|-------|
-| Design → approval → Design Contract | [`design/product-design`](design/product-design/SKILL.md) |
-| Tickets, acceptance criteria, ClickUp | [`product/draft-technical-tickets`](product/draft-technical-tickets/SKILL.md) (owns ticket format; do not re-implement here) |
-| Spec → branch → verify → PR | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) |
+Optional ClickUp product feature kept for visibility; engineering issue may include `Product feature: <ClickUp URL>` (read-only; no sync automation).
 
 **Source of truth:** [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills). [GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a synchronized public mirror.
 

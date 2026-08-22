@@ -12,29 +12,40 @@ You are a senior engineer helping enforce Singleton SD's git conventions. Apply 
 
 ---
 
+## Engineering host
+
+Read consumer `.skills/profile` / [`config/tracker-profiles/`](../../config/tracker-profiles/README.md).
+
+| Host | Preferred branch | Preferred commit ticket token |
+|------|------------------|-------------------------------|
+| GitHub / GitLab app repos | `<type>/<issue-number>-<kebab-title>` | `#<issue>` or bare issue number from branch |
+| This skills repo (ClickUp) | `feature/AI-NN-slug` | `AI-NN` custom id |
+
+Legacy ClickUp Delivery branches (`feature/<clickup-id>-…`) may exist on older app work — do not create new ones.
+
 ## Commit message format
 
 ```
-type: TICKET-NUMBER Description in sentence case
+type: TICKET Description in sentence case
 ```
 
 Examples:
 ```
+feat: #284 Add multi-agent skills install
+feat: AI-47 Migrate poc skills into categories
 feat: SSDOP-42 Add dark mode toggle to settings page
-fix: SSDOP-17 Resolve null pointer in token parser
-chore: SSDOP-99 Update dependencies to latest versions
 ```
 
 ### Rules
 
 | Rule | Requirement |
 |------|-------------|
-| Format | `type: TICKET-NUMBER Description` |
+| Format | `type: TICKET Description` |
 | Subject case | Sentence-case — first letter capitalized, rest lowercase |
 | Subject max length | 50 characters |
 | Subject ending | No period `.` at end |
 | Ticket presence | Required in commit message **or** inferrable from branch name |
-| Ticket format | `[A-Z]{1,5}-[0-9]{1,5}` — e.g. `SSDOP-42`, `PROJ-7` |
+| Ticket format | Host issue (`#284` / `284`) **or** `[A-Z]{1,5}-[0-9]{1,5}` (e.g. `AI-47`, `SSDOP-42`) |
 | Body separator | Blank line between subject and body (if body is present) |
 | Body line length | Max 72 characters per line |
 | Release commits | Skipped — format is `chore: Release vX.Y.Z` (auto-generated) |
@@ -92,27 +103,33 @@ You only need to include the ticket explicitly when:
 
 ## Branch naming
 
+**App repos (GitHub / GitLab issues):**
+
+```
+<type>/<issue-number>-<kebab-title>
+```
+
+Examples: `feat/284-skills-multi-agent-install`, `fix/211-login-redirect`, `chore/284-skills-install`.
+
+**Skills repo / ClickUp-custom-id workflows:**
+
 ```
 feature/TICKET-NUMBER[-optional-slug]
 hotfix/TICKET-NUMBER[-optional-slug]
 release/vMAJOR.MINOR.PATCH
 ```
 
-Also allowed (protected):
-```
-main    master    develop    design
-```
+Also allowed (protected): `main`, `master`, `develop`, `design`.
 
 Examples:
 ```
-feature/SSDOP-42
+feature/AI-47-skills-consolidation
 feature/SSDOP-42-dark-mode-toggle
-hotfix/SSDOP-17
 hotfix/SSDOP-17-null-pointer-fix
 release/v1.3.0
 ```
 
-The `post-checkout` hook validates branch names on creation. Invalid branches are automatically deleted and the previous branch is restored.
+Prefer the target repo's `AGENTS.md` when it defines a stricter pattern. The skills-repo `post-checkout` hook validates ClickUp-style names on creation.
 
 ---
 
@@ -131,7 +148,7 @@ or `main`); do not hardcode it.
 - Subagents already inside a feature worktree must stay there and must not
   create another worktree.
 
-Full procedure: [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md).
+Full procedure: [`engineering/isolated-worktree`](../isolated-worktree/SKILL.md).
 
 ---
 

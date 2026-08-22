@@ -1,29 +1,36 @@
 ---
 name: Draft Technical Tickets
 description: >-
-  Draft precise parent/child engineering tickets from a Design Contract, ClickUp
-  brief, or feature request by reconciling ClickUp docs with the live repository.
-  Use when the user asks to draft technical tickets, /ticket, turn design into
-  ClickUp work, or hand off an approved Design Contract for implementation.
-tags: [product, planning, tickets, clickup, engineering, workflow]
+  Draft precise parent/child engineering issues from a Design Contract, product
+  brief, or feature request by reconciling docs with the live repository. Use
+  when the user asks to draft technical tickets, /ticket, turn design into host
+  issues (GitHub or GitLab), or hand off an approved Design Contract.
+tags: [product, planning, tickets, github, gitlab, engineering, workflow]
 audience: [product-managers, engineers, tech-leads]
 status: stable
 ---
 
 # Draft Technical Tickets
 
-Draft precise tickets that another coding agent can implement without guessing.
+Draft precise **engineering issues** that another coding agent can implement without guessing.
 
-Read [`references/project-context.md`](references/project-context.md) before drafting.
-Use [`references/ticket-template.md`](references/ticket-template.md) for the output structure.
+Default destination is the **project host** (GitHub Issues or GitLab Issues) per
+[`config/tracker-profiles/`](../../config/tracker-profiles/README.md) and consumer
+`.skills/profile`. ClickUp is only for product features or tracking tickets when
+the user explicitly asks (`operations/create-tracking-ticket`).
+
+Read [`references/project-context.md`](references/project-context.md) when present
+as optional project hints — prefer the live repo `AGENTS.md` and docs over stale
+summaries. Use [`references/ticket-template.md`](references/ticket-template.md)
+for structure.
 
 ## Inputs
 
 Accept any of:
 
-- Approved Design Contract from [`design/product-design`](design/product-design/SKILL.md)
+- Approved Design Contract from [`design/product-design`](../../design/product-design/SKILL.md)
 - Feature description / PRD
-- ClickUp URL or task id
+- ClickUp URL or task id (product context)
 - Target repository (path or remote)
 
 If the target repository is unclear, ask once before inspecting code.
@@ -31,21 +38,19 @@ If the target repository is unclear, ask once before inspecting code.
 ## Workflow
 
 1. Understand the requested outcome, user-visible behaviour, constraints, and non-goals.
-2. Inspect the ClickUp support documents relevant to the request. Treat documented architecture and product decisions as authoritative unless the repository clearly shows they are obsolete.
-3. Inspect the current GitHub repository rather than relying on the project summary alone. Read the root guidance, relevant package guidance, nearby implementation, tests, schemas, generated clients, and configuration.
-4. Reconcile documentation with code. State material conflicts or uncertainty; do not silently invent behaviour.
-5. Decide whether the work fits one focused implementation ticket. If it spans independently deliverable layers, pillars, migrations, or rollout steps, draft a parent feature and ordered child tickets.
-6. Ask only questions whose answers materially change scope, architecture, security, data compatibility, or acceptance criteria. Otherwise make a conservative assumption and label it.
-7. Draft the parent and child tickets using the template. Keep child tickets independently implementable, testable, and reviewable.
-8. Return drafts in the conversation for approval. Do not write to ClickUp unless the user explicitly asks to create or update tasks.
+2. Inspect product docs (ClickUp or repo) relevant to the request. Treat documented architecture decisions as authoritative unless the repository clearly shows they are obsolete.
+3. Inspect the live repository. Read `AGENTS.md`, nearby implementation, tests, schemas, clients, and configuration.
+4. Reconcile documentation with code. State material conflicts; do not silently invent behaviour.
+5. Decide whether the work fits one focused implementation issue. If it spans independently deliverable layers, draft a parent + ordered children.
+6. Ask only questions whose answers materially change scope, architecture, security, data compatibility, or acceptance criteria.
+7. Draft parent/child **host issues** (GitHub or GitLab). Optionally note `Product feature: <ClickUp URL>`.
+8. Return drafts for approval. Do not create ClickUp or host issues unless the user explicitly asks.
 
 ## Repository inspection
 
-Prefer the connected GitHub tools for `singleton-sd/poc-plattform-kit` when the project is not checked out locally.
+Use `gh` or `glab` (and local checkout) for the target host. When a local checkout is available, read its `AGENTS.md`.
 
-When a local checkout is available, read its `AGENTS.md` and follow all applicable scoped instructions.
-
-Cite concrete repository paths, symbols, endpoints, packages, schemas, or workflows only after verifying them.
+Cite concrete repository paths only after verifying them.
 
 Inspect the narrowest relevant implementation surface, then trace adjacent contracts and consumers.
 
@@ -95,7 +100,7 @@ Mark exclusions explicitly to prevent scope creep.
 
 Do not include estimates, assignees, statuses, or priorities unless the user asks or the source material defines them.
 
-Never claim a ClickUp ticket was created from a draft.
+Never claim a ClickUp or host issue was created from a draft unless you actually created it.
 
 ## Final quality check
 
@@ -113,9 +118,9 @@ Before returning a draft, confirm that:
 
 | Skill | Role |
 |-------|------|
-| [`design/product-design`](design/product-design/SKILL.md) | Upstream UI design; produces Design Contract |
-| [`product/backlog-refinement`](product/backlog-refinement/SKILL.md) | Lightweight story refinement — not a substitute for repo-reconciled technical tickets |
-| [`product/prd-generator`](product/prd-generator/SKILL.md) | Optional PRD input |
-| [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Downstream implementation after tickets exist |
+| [`design/product-design`](../../design/product-design/SKILL.md) | Upstream UI design; produces Design Contract |
+| [`product/backlog-refinement`](../backlog-refinement/SKILL.md) | Lightweight story refinement — not a substitute for repo-reconciled technical tickets |
+| [`product/prd-generator`](../prd-generator/SKILL.md) | Optional PRD input |
+| [`engineering/implement-feature`](../../engineering/implement-feature/SKILL.md) | Downstream implementation after tickets exist |
 
 This skill owns ticket format, acceptance criteria shape, parent/child decomposition, and engineering documentation for the AI product workflow. Sibling skills must not invent a second ticket template.

@@ -95,11 +95,13 @@ For architecture or cross-cutting plans, write the decision into the project's a
 Every real follow-up discovered during refinement must be explicit:
 
 - search existing work first to avoid duplicates;
-- route unresolved work to discovery;
-- route implementation-ready work to delivery;
+- route unresolved product work to ClickUp (product/tracking);
+- route implementation-ready work to **host issues** (GitHub or GitLab per `engineeringHost`);
 - route manual work to human operations;
 - wire dependencies;
 - leave newly planned work unclaimed.
+
+See [`config/tracker-profiles/`](../../config/tracker-profiles/README.md).
 
 ## Multi-ticket output
 
