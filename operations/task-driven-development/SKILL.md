@@ -18,7 +18,7 @@ Use this skill when implementing work from the **project host's** issue tracker.
 
 1. Read consumer `.skills/profile` when present (`engineeringHost`: `github` | `gitlab`).
 2. Else infer from `git remote get-url origin` (`github.com` → github, `gitlab.com` → gitlab).
-3. Load the matching profile under [`config/tracker-profiles/`](config/tracker-profiles/README.md).
+3. Load the matching profile under [`config/tracker-profiles/`](../../config/tracker-profiles/README.md).
 
 | Host | CLI | Claim | Handoff |
 |------|-----|-------|---------|
@@ -29,7 +29,7 @@ Use this skill when implementing work from the **project host's** issue tracker.
 
 Read the target repo `AGENTS.md` for worktree helpers, hub-file rules, and conflict playbooks.
 
-Also apply [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md).
+Also apply [`engineering/isolated-worktree`](../../engineering/isolated-worktree/SKILL.md).
 
 ## Issue and chat titles
 

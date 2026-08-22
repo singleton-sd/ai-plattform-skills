@@ -24,7 +24,7 @@ engineering issue on the project host.
 | **GitHub / GitLab Issues** | Engineering work — only create if the user wants implementation tracking on the host |
 
 Do **not** use ClickUp Delivery / claim tokens for engineering execution.
-Read [`config/tracker-profiles/README.md`](config/tracker-profiles/README.md)
+Read [`config/tracker-profiles/README.md`](../../config/tracker-profiles/README.md)
 and the consumer `.skills/profile` when present.
 
 ## When to use
@@ -39,7 +39,7 @@ and the consumer `.skills/profile` when present.
   (`task-management` / `draft-technical-tickets`) instead of or in addition to tracking.
 - User already has a ClickUp **product feature** → refine that; do not duplicate.
 - Skills-repo skill authoring → use `operations/skill-authoring-workflow` and
-  the Skills Product Backlog list in [`config/clickup-defaults.json`](config/clickup-defaults.json).
+  the Skills Product Backlog list in [`config/clickup-defaults.json`](../../config/clickup-defaults.json).
 
 ## Workflow
 

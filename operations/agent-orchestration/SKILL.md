@@ -18,7 +18,7 @@ ordering, or PRs/MRs becoming unmergeable as the default branch moves.
 
 This skill coordinates work. It does not replace `task-driven-development`.
 Resolve `engineeringHost` via `.skills/profile` or
-[`config/tracker-profiles/`](config/tracker-profiles/README.md). Read the
+[`config/tracker-profiles/`](../../config/tracker-profiles/README.md). Read the
 target repo `AGENTS.md` for worktree helpers and hub-file rules.
 
 ## Goals

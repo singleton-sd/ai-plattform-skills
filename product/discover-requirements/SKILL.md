@@ -258,13 +258,14 @@ Keep the document proportional. A small UI behavior may need only a short brief;
 
 ## Persisting the brief
 
-the target repo engineering source-of-truth doc (when present) section 1 and section 3 are
-authoritative: GitHub Issues own engineering work, including technical discovery — there is no
-separate pre-GitHub "discovery" queue.
+Resolve `engineeringHost` from consumer `.skills/profile` or
+[`../../config/tracker-profiles/`](../../config/tracker-profiles/README.md)
+(infer from `git remote` when missing). Host issues own engineering discovery —
+there is no separate pre-host "discovery" queue.
 
 When the target repo is known, when the user asks to store the brief:
 
-- persist unresolved requirements/discovery as a GitHub issue (open a new one, or update the
+- persist unresolved requirements/discovery as a **host issue** (open a new one, or update the
   issue the brief originated from);
 - validation/spike work stays as an open, not-yet-agent-ready issue until its question is
   answered — do not mark it agent-ready;
@@ -277,7 +278,11 @@ When the target repo is known, when the user asks to store the brief:
 Create:
 
 ```bash
+# GitHub (engineeringHost: github)
 gh issue create --title "..." --body "..."
+
+# GitLab (engineeringHost: gitlab)
+glab issue create --title "..." --description "..."
 ```
 
 ## Handoff contract
@@ -292,5 +297,5 @@ Do not duplicate the responsibilities of:
 
 - `refine-idea` — validating and shaping the product idea itself;
 - design skills — deciding UX/UI or technical solution structure;
-- `backlog-refinement` — converting known work into an agent-ready GitHub issue;
+- `backlog-refinement` — converting known work into an agent-ready host issue;
 - `idea-to-delivery` — creating parent/tracking issues, independently mergeable delivery-slice issues, dependencies, and parallel lanes.

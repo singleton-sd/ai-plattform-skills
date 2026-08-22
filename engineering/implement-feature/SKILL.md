@@ -111,8 +111,8 @@ For tiny, unambiguous changes, a one-paragraph plan is enough.
 
 ### 6. Create a sibling worktree and branch
 
-Follow [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md)
-and [`engineering/git-conventions`](engineering/git-conventions/SKILL.md):
+Follow [`engineering/isolated-worktree`](../isolated-worktree/SKILL.md)
+and [`engineering/git-conventions`](../git-conventions/SKILL.md):
 
 ```text
 feature/TICKET-NUMBER[-optional-slug]
@@ -167,7 +167,7 @@ target project treats as authoritative.
 ### 11. Update tracker per engineering host
 
 Engineering handoff is the host PR/MR (GitHub or GitLab per
-[`config/tracker-profiles/`](config/tracker-profiles/README.md) /
+[`config/tracker-profiles/`](../../config/tracker-profiles/README.md) /
 consumer `.skills/profile`). Ensure the PR/MR links/closes the issue.
 
 ClickUp product or tracking tickets (if any):
@@ -204,9 +204,9 @@ Suggested command surface (future):
 
 ## Related skills
 
-- [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md)
-- [`engineering/git-conventions`](engineering/git-conventions/SKILL.md)
-- [`engineering/code-review`](engineering/code-review/SKILL.md)
-- [`operations/task-driven-development`](operations/task-driven-development/SKILL.md)
+- [`engineering/isolated-worktree`](../isolated-worktree/SKILL.md)
+- [`engineering/git-conventions`](../git-conventions/SKILL.md)
+- [`engineering/code-review`](../code-review/SKILL.md)
+- [`operations/task-driven-development`](../../operations/task-driven-development/SKILL.md)
 - [`design/product-design`](design/product-design/SKILL.md) — upstream design stage
 - `product/draft-technical-tickets` — upstream ticket stage (format owner; do not duplicate)

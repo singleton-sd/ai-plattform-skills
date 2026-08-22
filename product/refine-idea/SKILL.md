@@ -161,28 +161,34 @@ Keep the brief proportional to the idea. Small ideas do not need ceremony.
 
 ## Persisting the brief
 
-the target repo engineering source-of-truth doc (when present) section 1 and section 3 are
-authoritative: GitHub Issues own engineering work, including technical discovery — there is no
-separate pre-GitHub "ideas" queue for anything that has already crossed into engineering framing.
+Resolve `engineeringHost` from consumer `.skills/profile` or
+[`../../config/tracker-profiles/`](../../config/tracker-profiles/README.md)
+(infer from `git remote` when missing). Host issues own engineering work, including technical
+discovery — there is no separate pre-host "ideas" queue for anything that has already crossed
+into engineering framing.
 
 When the target repo is known, only when the user asks to store the brief:
 
 - **READY FOR REQUIREMENTS** or **NEEDS VALIDATION** (a spike is genuinely engineering
-  discovery): open (or update) a GitHub issue capturing the brief. Do not mark it agent-ready —
+  discovery): open (or update) a **host issue** capturing the brief. Do not mark it agent-ready —
   that happens later, via `discover-requirements` → `backlog-refinement` /
   `idea-to-delivery`, once the open questions are resolved.
 - **HOLD / DO NOT BUILD**: no issue is needed unless the user wants the rejection recorded for
   future reference (a comment on a related existing issue is usually enough).
-- A private business/commercial idea that has **not yet** crossed the engineering boundary (see
-  `the target repo engineering source-of-truth doc` section 3) is out of this skill's scope to file anywhere — that is
-  business planning, not engineering discovery.
+- A private business/commercial idea that has **not yet** crossed the engineering boundary is out
+  of this skill's scope to file as an engineering issue — that is business planning (ClickUp
+  product), not engineering discovery.
 
 Browsing/refinement is not claiming: filing the issue does not assign it to anyone.
 
 Create:
 
 ```bash
+# GitHub (engineeringHost: github)
 gh issue create --title "..." --body "..."
+
+# GitLab (engineeringHost: gitlab)
+glab issue create --title "..." --description "..."
 ```
 
 ## Handoff contract

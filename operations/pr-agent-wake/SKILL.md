@@ -18,7 +18,7 @@ PR/MR for the same closing issue.
 ## Before editing
 
 1. Resolve `engineeringHost` from `.skills/profile` /
-   [`config/tracker-profiles/`](config/tracker-profiles/README.md).
+   [`config/tracker-profiles/`](../../config/tracker-profiles/README.md).
 2. Read target `AGENTS.md` and `operations/agent-orchestration`.
 3. Check out / attach to the **existing** PR/MR branch worktree (create a
    worktree for that branch if needed — do not create a new feature branch).

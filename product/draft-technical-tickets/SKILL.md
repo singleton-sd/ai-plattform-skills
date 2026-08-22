@@ -15,7 +15,7 @@ status: stable
 Draft precise **engineering issues** that another coding agent can implement without guessing.
 
 Default destination is the **project host** (GitHub Issues or GitLab Issues) per
-[`config/tracker-profiles/`](config/tracker-profiles/README.md) and consumer
+[`config/tracker-profiles/`](../../config/tracker-profiles/README.md) and consumer
 `.skills/profile`. ClickUp is only for product features or tracking tickets when
 the user explicitly asks (`operations/create-tracking-ticket`).
 
@@ -28,7 +28,7 @@ for structure.
 
 Accept any of:
 
-- Approved Design Contract from [`design/product-design`](design/product-design/SKILL.md)
+- Approved Design Contract from [`design/product-design`](../../design/product-design/SKILL.md)
 - Feature description / PRD
 - ClickUp URL or task id (product context)
 - Target repository (path or remote)
@@ -118,9 +118,9 @@ Before returning a draft, confirm that:
 
 | Skill | Role |
 |-------|------|
-| [`design/product-design`](design/product-design/SKILL.md) | Upstream UI design; produces Design Contract |
-| [`product/backlog-refinement`](product/backlog-refinement/SKILL.md) | Lightweight story refinement — not a substitute for repo-reconciled technical tickets |
-| [`product/prd-generator`](product/prd-generator/SKILL.md) | Optional PRD input |
-| [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Downstream implementation after tickets exist |
+| [`design/product-design`](../../design/product-design/SKILL.md) | Upstream UI design; produces Design Contract |
+| [`product/backlog-refinement`](../backlog-refinement/SKILL.md) | Lightweight story refinement — not a substitute for repo-reconciled technical tickets |
+| [`product/prd-generator`](../prd-generator/SKILL.md) | Optional PRD input |
+| [`engineering/implement-feature`](../../engineering/implement-feature/SKILL.md) | Downstream implementation after tickets exist |
 
 This skill owns ticket format, acceptance criteria shape, parent/child decomposition, and engineering documentation for the AI product workflow. Sibling skills must not invent a second ticket template.

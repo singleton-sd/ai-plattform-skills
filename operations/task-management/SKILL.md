@@ -15,7 +15,7 @@ Help create and organise work. **Where the ticket lives depends on what it is.**
 
 ## Resolve destinations
 
-1. Read consumer `.skills/profile` and [`config/tracker-profiles/`](config/tracker-profiles/README.md).
+1. Read consumer `.skills/profile` and [`config/tracker-profiles/`](../../config/tracker-profiles/README.md).
 2. Infer `engineeringHost` from git remote when profile is missing.
 
 | Kind of work | System | Tool |
@@ -23,7 +23,7 @@ Help create and organise work. **Where the ticket lives depends on what it is.**
 | Engineering implementation (agent-ready or discovery) | GitHub Issues or GitLab Issues | `gh` / `glab` |
 | Product feature the user describes | ClickUp (product list) | ClickUp MCP or REST |
 | Ad-hoc tracking with no feature yet | ClickUp (tracking list) | `operations/create-tracking-ticket` |
-| Skill changes in this skills repo | ClickUp Skills Product Backlog | [`config/clickup-defaults.json`](config/clickup-defaults.json) |
+| Skill changes in this skills repo | ClickUp Skills Product Backlog | [`config/clickup-defaults.json`](../../config/clickup-defaults.json) |
 
 Never use ClickUp as the engineering claim/handoff system for app repos.
 

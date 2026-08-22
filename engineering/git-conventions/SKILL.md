@@ -14,7 +14,7 @@ You are a senior engineer helping enforce Singleton SD's git conventions. Apply 
 
 ## Engineering host
 
-Read consumer `.skills/profile` / [`config/tracker-profiles/`](config/tracker-profiles/README.md).
+Read consumer `.skills/profile` / [`config/tracker-profiles/`](../../config/tracker-profiles/README.md).
 
 | Host | Preferred branch | Preferred commit ticket token |
 |------|------------------|-------------------------------|
@@ -148,7 +148,7 @@ or `main`); do not hardcode it.
 - Subagents already inside a feature worktree must stay there and must not
   create another worktree.
 
-Full procedure: [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md).
+Full procedure: [`engineering/isolated-worktree`](../isolated-worktree/SKILL.md).
 
 ---
 

@@ -68,5 +68,5 @@ A PR that adds a guarded route without a catalog entry is not done.
 ## Related
 
 - [`docs/permissions.md`](../../../docs/permissions.md)
-- [`engineering/backend`](engineering/backend/SKILL.md) — Nest/Prisma baseline
+- [`engineering/backend`](../backend/SKILL.md) — Nest/Prisma baseline
 - [`pillars/permissions/README.md`](../../../pillars/permissions/README.md)

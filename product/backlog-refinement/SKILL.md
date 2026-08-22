@@ -101,7 +101,7 @@ Every real follow-up discovered during refinement must be explicit:
 - wire dependencies;
 - leave newly planned work unclaimed.
 
-See [`config/tracker-profiles/`](config/tracker-profiles/README.md).
+See [`config/tracker-profiles/`](../../config/tracker-profiles/README.md).
 
 ## Multi-ticket output
 
