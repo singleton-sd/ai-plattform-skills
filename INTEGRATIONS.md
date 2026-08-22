@@ -103,6 +103,36 @@ Nested worktrees inside a checkout (for example `.worktrees/` under `main`)
 break adapter junctions, especially on Windows. See
 [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md).
 
+## Tracker profiles (engineering host)
+
+App repos declare `.skills/profile` with `engineeringHost`: `github` or `gitlab`.
+See [`config/tracker-profiles/`](config/tracker-profiles/README.md).
+
+- GitHub-hosted project → GitHub Issues + PR
+- GitLab-hosted project → GitLab Issues + MR
+- ClickUp → product features and optional tracking only
+
+## Consumer repo install (multi-agent)
+
+Consumer app repos should **not** hardcode a local skills checkout path. Install from the GitHub mirror so cloud agents work:
+
+```bash
+npx skills add singleton-sd/ai-plattform-skills \
+  --skill backend --skill task-driven-development \
+  -a cursor -a claude-code -a grok -a codex \
+  --copy -y
+```
+
+Project folders written by the Skills CLI:
+
+| Agent | Project path |
+|-------|----------------|
+| Cursor / Codex | `.agents/skills/` |
+| Claude Code | `.claude/skills/` |
+| Grok | `.grok/skills/` |
+
+Prefer a committed `.skills/manifest.json` + install script in the consumer repo (pin for cloud; refresh on demand).
+
 ## Adding an integration
 
 If you connect a new MCP server that's useful for the team, add it here with:

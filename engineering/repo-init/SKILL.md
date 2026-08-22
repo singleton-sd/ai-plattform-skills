@@ -469,6 +469,19 @@ stages:
 
 ---
 
+## Step 13 — (Recommended) Skills manifest for multi-agent install
+
+Scaffold consumer skills discovery so Cursor, Claude, Grok, and Codex share one catalog from `ai-plattform-skills`:
+
+1. Create `.skills/profile` with `engineeringHost` (`github` or `gitlab`) and optional ClickUp list ids.
+2. Create `.skills/manifest.json` listing flat skill names and `"agents": ["cursor", "claude-code", "grok", "codex"]`.
+3. Add an install script that runs `npx skills add singleton-sd/ai-plattform-skills --skill … -a … --copy -y` (see INTEGRATIONS.md).
+4. Pin installed trees under `.agents/skills/` (plus `.claude/skills/`, `.grok/skills/`) for cloud agents.
+
+Do not hardcode a local sibling checkout path for the skills repo.
+
+---
+
 ## Known issues & adaptations
 
 ### ESM projects (`"type": "module"` in package.json)

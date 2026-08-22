@@ -1,0 +1,16 @@
+{
+  "id": "gitlab",
+  "engineeringHost": "gitlab",
+  "issueTracker": "gitlab-issues",
+  "cli": "glab",
+  "mergeVehicle": "merge-request",
+  "closingKeyword": "Closes",
+  "branchPattern": "<type>/<issue-number>-<kebab-title>",
+  "claimMechanism": "branch-worktree-plus-linked-open-mr",
+  "productTracker": "clickup",
+  "notes": [
+    "Engineering claim/handoff happens only on GitLab Issues + MRs.",
+    "ClickUp is product features and optional tracking tickets only.",
+    "Read target repo AGENTS.md for worktree helpers and hub-file rules."
+  ]
+}

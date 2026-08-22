@@ -1,0 +1,16 @@
+{
+  "id": "github",
+  "engineeringHost": "github",
+  "issueTracker": "github-issues",
+  "cli": "gh",
+  "mergeVehicle": "pull-request",
+  "closingKeyword": "Closes",
+  "branchPattern": "<type>/<issue-number>-<kebab-title>",
+  "claimMechanism": "branch-worktree-plus-linked-open-pr",
+  "productTracker": "clickup",
+  "notes": [
+    "Engineering claim/handoff happens only on GitHub Issues + PRs.",
+    "ClickUp is product features and optional tracking tickets only.",
+    "Read target repo AGENTS.md for worktree helpers and hub-file rules."
+  ]
+}

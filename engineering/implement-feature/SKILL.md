@@ -53,7 +53,7 @@ Implement feature progress:
 - [ ] 8. Run lint, typecheck, tests, build
 - [ ] 9. Review against acceptance criteria
 - [ ] 10. Create PR
-- [ ] 11. Update ClickUp if available
+- [ ] 11. Update tracker per engineeringHost (PR/MR; ClickUp only if product/tracking)
 ```
 
 ### 1. Read specification
@@ -164,15 +164,19 @@ Remember: for Singleton SD platform repos, **GitLab is source of truth**;
 GitHub may be a synchronized mirror for AI agents. Prefer the remote the
 target project treats as authoritative.
 
-### 11. Update ClickUp if available
+### 11. Update tracker per engineering host
 
-When a ClickUp task is linked and ClickUp access exists:
+Engineering handoff is the host PR/MR (GitHub or GitLab per
+[`config/tracker-profiles/`](config/tracker-profiles/README.md) /
+consumer `.skills/profile`). Ensure the PR/MR links/closes the issue.
 
-- Move status toward review / in review (use the list's valid statuses)
-- Comment with the PR URL
-- Do **not** mark the task complete unless the user asks
+ClickUp product or tracking tickets (if any):
 
-If ClickUp is unavailable, skip without failing the workflow.
+- Optionally comment with the PR/MR URL for visibility
+- Do **not** use ClickUp for engineering claim/handoff
+- Do **not** mark ClickUp complete unless the user asks
+
+If no ClickUp ticket exists, skip without failing the workflow.
 
 ## Guardrails
 
