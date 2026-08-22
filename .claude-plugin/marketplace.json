@@ -34,6 +34,7 @@
         "./engineering/refactoring",
         "./engineering/repo-init",
         "./engineering/repo-init-npm-publish",
+        "./engineering/route53-subdomains",
         "./engineering/test-generation",
         "./marketing/blog-post-generator",
         "./marketing/seo-analysis",
