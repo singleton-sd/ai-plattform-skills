@@ -40,6 +40,7 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Implement an approved spec (any tracker), verify, and open a PR |
 | [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md) | Implement and review in a sibling git worktree from the latest default branch |
 | [`engineering/refactoring`](engineering/refactoring/SKILL.md) | Identify and apply targeted refactoring improvements |
+| [`engineering/route53-subdomains`](engineering/route53-subdomains/SKILL.md) | Create/update/delete Route 53 DNS records for project subdomains using Key Vault agent credentials |
 | [`engineering/repo-init`](engineering/repo-init/SKILL.md) | Initialize a repo with husky, commitlint, and release-it |
 | [`engineering/pipelines-npm`](engineering/pipelines-npm/SKILL.md) | Include singletonsd/pipelines/npm GitLab CI and configure GitLab/npmjs publish |
 | [`engineering/repo-init-npm-publish`](engineering/repo-init-npm-publish/SKILL.md) | Scaffold publishable npm packages and CLI tools with GitLab, CI, and release setup |
