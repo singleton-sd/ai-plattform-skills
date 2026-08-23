@@ -33,14 +33,15 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 ### Engineering
 | Skill | Description |
 |-------|-------------|
+| [`engineering/address-change-request-review`](engineering/address-change-request-review/SKILL.md) | Triage PR/MR review feedback on GitHub or GitLab; fix or justify; reply and resolve threads |
 | [`engineering/backend`](engineering/backend/SKILL.md) | NestJS + SQL Server + Prisma backend guidelines |
 | [`engineering/code-review`](engineering/code-review/SKILL.md) | Review code for quality, correctness, and security |
-| [`engineering/fix-bugbot`](engineering/fix-bugbot/SKILL.md) | Fix Bugbot PR findings and reply on the review thread |
+| [`engineering/fix-bugbot`](engineering/fix-bugbot/SKILL.md) | **Deprecated** — use address-change-request-review for bot findings |
 | [`engineering/form-ux`](engineering/form-ux/SKILL.md) | Implement and audit forms against submission, validation-timing, character-limit, pre-fill, password, and formatting UX rules |
 | [`engineering/forward-email`](engineering/forward-email/SKILL.md) | Provision and diagnose Forward Email domains, DNS, aliases, and tokens |
 | [`engineering/frontend`](engineering/frontend/SKILL.md) | React/Next.js frontend guidelines |
 | [`engineering/git-conventions`](engineering/git-conventions/SKILL.md) | Apply commit format, branch naming, and ticket linking conventions |
-| [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Implement an approved spec (any tracker), verify, and open a PR |
+| [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Implement an approved spec, verify locally, and submit a PR/MR |
 | [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md) | Implement and review in a sibling git worktree from the latest default branch |
 | [`engineering/pipelines-npm`](engineering/pipelines-npm/SKILL.md) | Include singletonsd/pipelines/npm GitLab CI and configure GitLab/npmjs publish |
 | [`engineering/refactoring`](engineering/refactoring/SKILL.md) | Identify and apply targeted refactoring improvements |
@@ -50,6 +51,7 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 | [`engineering/route53-subdomains`](engineering/route53-subdomains/SKILL.md) | Create/update/delete Route 53 DNS records for project subdomains using Key Vault agent credentials |
 | [`engineering/schema-driven-forms`](engineering/schema-driven-forms/SKILL.md) | Build forms with Zod → JSON Schema → JSON Forms and token renderers |
 | [`engineering/storybook`](engineering/storybook/SKILL.md) | Storybook stories and Chromatic snapshot workflow |
+| [`engineering/submit-change-request`](engineering/submit-change-request/SKILL.md) | Push branch, open PR/MR on GitHub or GitLab, wait for CI, update ClickUp or repo issue |
 | [`engineering/test-generation`](engineering/test-generation/SKILL.md) | Generate comprehensive, meaningful tests |
 
 ### Design
@@ -104,7 +106,7 @@ Regulatory filing workflows — one folder per body (e.g. `compliance/asic`, `co
 | [`operations/task-management`](operations/task-management/SKILL.md) | Create and manage host issues and optional ClickUp product/tracking tickets |
 | [`operations/task-driven-development`](operations/task-driven-development/SKILL.md) | Implement one host issue at a time with scoped staging and commit messages |
 | [`operations/agent-orchestration`](operations/agent-orchestration/SKILL.md) | Coordinate multiple agents across issues and worktrees |
-| [`operations/pr-agent-wake`](operations/pr-agent-wake/SKILL.md) | Fix an existing PR/MR after CI or review feedback |
+| [`operations/pr-agent-wake`](operations/pr-agent-wake/SKILL.md) | Fix an existing PR/MR after CI or review feedback (uses address-change-request-review) |
 | [`operations/create-tracking-ticket`](operations/create-tracking-ticket/SKILL.md) | Create a ClickUp tracking ticket for ad-hoc work |
 | [`operations/skill-authoring-workflow`](operations/skill-authoring-workflow/SKILL.md) | Create or update shared skills with task tracking and commit discipline |
 
@@ -127,7 +129,9 @@ Feature idea (ClickUp or conversation)
       → refine-idea → discover-requirements
       → backlog-refinement / idea-to-delivery
       → draft-technical-tickets → GitHub or GitLab issues
-      → task-driven-development / implement-feature → PR/MR
+      → task-driven-development / implement-feature
+      → submit-change-request → PR/MR + CI wait
+      → address-change-request-review (when feedback arrives)
 ```
 
 Optional ClickUp product feature kept for visibility; engineering issue may include `Product feature: <ClickUp URL>` (read-only; no sync automation).
