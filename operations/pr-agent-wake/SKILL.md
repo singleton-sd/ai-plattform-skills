@@ -3,7 +3,8 @@ name: PR Agent Wake
 description: >-
   Fix an existing pull request or merge request after CI failure or review
   feedback. Attach to the existing branch; never open a second PR/MR for the
-  same issue.
+  same issue. Delegates to engineering/address-change-request-review and
+  engineering/submit-change-request for CI re-checks.
 tags: [operations, pr, mr, ci, review, github, gitlab]
 audience: [engineers, tech-leads]
 status: stable
@@ -11,38 +12,48 @@ status: stable
 
 # PR Agent Wake
 
-Use when an **existing** PR (GitHub) or MR (GitLab) needs fixes: `ci-failed`,
-merge conflicts, or actionable review feedback. Do **not** open a second
-PR/MR for the same closing issue.
+Use when an **existing** PR (GitHub) or MR (GitLab) needs fixes: CI failure,
+merge conflicts, or actionable review feedback. Do **not** open a second PR/MR
+for the same closing issue.
 
 ## Before editing
 
 1. Resolve `engineeringHost` from `.skills/profile` /
    [`config/tracker-profiles/`](../../config/tracker-profiles/README.md).
-2. Read target `AGENTS.md` and `operations/agent-orchestration`.
+2. Read target `AGENTS.md` and [`operations/agent-orchestration`](../agent-orchestration/SKILL.md).
 3. Check out / attach to the **existing** PR/MR branch worktree (create a
    worktree for that branch if needed — do not create a new feature branch).
 
 ## Workflow
 
-1. Fetch the PR/MR tip and all review/CI comments.
-2. Reproduce the failure locally when practical.
+Follow [`engineering/address-change-request-review`](../../engineering/address-change-request-review/SKILL.md)
+for review feedback and in-scope CI fixes on the branch.
+
+After pushing fixes, follow
+[`engineering/submit-change-request`](../../engineering/submit-change-request/SKILL.md)
+steps 5–6 to re-wait for CI (~10 minutes by default).
+
+Summary:
+
+1. Fetch the PR/MR tip and unresolved review/CI comments.
+2. Reproduce failures locally when practical.
 3. Fix the smallest change that clears the blocker.
 4. Push to the same branch (`--force-with-lease` only after rebase, when required).
-5. Re-check required CI / mergeability.
-6. Reply in-thread when a review comment is resolved.
+5. Reply in-thread on each resolved review comment; resolve threads when appropriate.
+6. Re-check required CI / mergeability.
 
 ## Rules
 
 - One PR/MR per engineering issue claim.
 - Prefer the repo conflict playbook for dirty merges.
 - Do not expand into unrelated issues.
-- ClickUp is not part of this loop.
+- ClickUp is not part of this loop unless the user asks for a visibility comment.
 
 ## Starter prompt
 
 ```text
 You are the PR/MR fixer for this repository.
-Follow operations/pr-agent-wake, AGENTS.md, and operations/agent-orchestration.
+Follow operations/pr-agent-wake, engineering/address-change-request-review,
+engineering/submit-change-request, AGENTS.md, and operations/agent-orchestration.
 Attach to the existing branch for PR/MR <url or number>. Fix CI/review feedback only.
 ```

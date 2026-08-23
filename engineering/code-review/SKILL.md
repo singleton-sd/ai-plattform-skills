@@ -35,6 +35,12 @@ Finish with a one-paragraph summary verdict.
 - Do not suggest style changes unless a linter config is provided
 - Distinguish between blocking issues and suggestions
 
+## Author response (not this skill)
+
+When **you** are the author addressing review feedback on a PR or MR, use
+[`engineering/address-change-request-review`](../address-change-request-review/SKILL.md)
+— not this reviewer checklist.
+
 ## Forms
 
 If the diff touches a form (schema, renderer, or host component), also apply
