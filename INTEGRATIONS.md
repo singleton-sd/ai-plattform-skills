@@ -92,8 +92,16 @@ Regenerate adapters **and** the marketplace catalog after adding or renaming a s
 npm run link:skills
 ```
 
-`npm install` / `prepare` rebuilds adapters only. Adapter folders are gitignored —
-commit the canonical skill files plus `.claude-plugin/` catalog updates.
+`npm install` / `prepare` rebuilds repo-local adapters only (no global home links).
+Global home links (`~/.kiro/skills`, `~/.gemini/config/skills`) run only via
+`npm run link:skills` (`--catalog`), not `prepare`.
+
+Global adapter directories are tracked in
+`~/.config/singleton-sd/skills-global-adapters.json`; only repo-owned links are
+removed when skills are renamed or dropped.
+
+Adapter folders are gitignored — commit the canonical skill files plus
+`.claude-plugin/` catalog updates.
 
 When authoring skills, use repo-root-relative paths (for example
 `config/clickup-defaults.json`, not `../../config/clickup-defaults.json`) so
