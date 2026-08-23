@@ -24,7 +24,7 @@ npx skills add singleton-sd/ai-plattform-skills --all
 claude plugin marketplace add singleton-sd/ai-plattform-skills
 ```
 
-Canonical skills live at `<category>/<skill-name>/SKILL.md`. Claude and the Skills CLI discover them through `.claude-plugin/marketplace.json`. Adapter folders (`.agents/skills`, `.claude/skills`, `.cursor/skills`, `.github/skills`) are generated locally by `npm run link:skills` and are not committed.
+Canonical skills live at `<category>/<skill-name>/SKILL.md`. Claude and the Skills CLI discover them through `.claude-plugin/marketplace.json`. Adapter folders (`.agents/skills`, `.claude/skills`, `.cursor/skills`, `.github/skills`, `.kiro/skills`, plus global `~/.kiro/skills` and `~/.gemini/config/skills`) are generated locally by `npm run link:skills` and are not committed.
 
 Ollama and similar local models have no skill folder — load a `SKILL.md` as a system prompt.
 

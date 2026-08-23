@@ -56,8 +56,9 @@ Create or update skills from a sibling worktree of this repository, not on
 4. Keep `SKILL.md` focused on reusable procedure, not a transcript of one session.
 5. Use repo-root-relative paths in links (for example `config/clickup-defaults.json`,
    not `../../config/clickup-defaults.json`) so skills still resolve when tools read
-   them through `.agents/skills/`, `.claude/skills/`, `.cursor/skills/`, or
-   `.github/skills/` adapters.
+   them through `.agents/skills/`, `.claude/skills/`, `.cursor/skills/`,
+   `.github/skills/`, or `.kiro/skills/` adapters (plus global
+   `~/.kiro/skills` and `~/.gemini/config/skills` for Kiro CLI and Antigravity CLI).
 6. Choose a globally unique `<skill-name>` across all categories. Adapter folders use
    the flat skill name only.
 7. Capture recent learnings as durable rules, especially:
@@ -87,7 +88,8 @@ npm run link:skills
 ```
 
 This rebuilds gitignored adapters
-(`.agents/skills/`, `.claude/skills/`, `.cursor/skills/`, `.github/skills/`)
+(`.agents/skills/`, `.claude/skills/`, `.cursor/skills/`, `.github/skills/`,
+`.kiro/skills/`, plus global `~/.kiro/skills` and `~/.gemini/config/skills`)
 and writes committed `.claude-plugin/marketplace.json` plus
 `.claude-plugin/plugin.json`. Stage those catalog files with the skill.
 

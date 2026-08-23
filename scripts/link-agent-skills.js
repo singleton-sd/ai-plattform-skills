@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,11 +19,19 @@ const CATEGORY_DIRS = [
   'writing',
 ];
 
+// Repo-local adapter roots (symlinked under this checkout).
 const ADAPTER_ROOTS = [
-  '.agents/skills',
+  '.agents/skills', // Codex, Antigravity CLI workspace, Gemini, Copilot
   '.claude/skills',
   '.cursor/skills',
   '.github/skills',
+  '.kiro/skills', // Kiro CLI workspace
+];
+
+// Global adapter roots (symlinked under the user home directory).
+const GLOBAL_ADAPTER_ROOTS = [
+  path.join(homeDir(), '.kiro', 'skills'), // Kiro CLI global
+  path.join(homeDir(), '.gemini', 'config', 'skills'), // Antigravity CLI global
 ];
 
 const EXCLUDED_DIR_NAMES = new Set([
@@ -33,12 +42,17 @@ const EXCLUDED_DIR_NAMES = new Set([
   '.git',
   '.github',
   '.husky',
+  '.kiro',
   'node_modules',
   'scripts',
   'config',
 ]);
 
 const writeCatalog = process.argv.includes('--catalog');
+
+function homeDir() {
+  return process.env.HOME || os.homedir();
+}
 
 function isDirectory(entryPath) {
   try {
@@ -100,10 +114,6 @@ function detectCollisions(skills) {
   }
 }
 
-function ensureAdapterRoot(adapterRoot) {
-  fs.mkdirSync(path.join(repoRoot, adapterRoot), { recursive: true });
-}
-
 function removeLink(linkPath) {
   if (!fs.existsSync(linkPath)) {
     return;
@@ -122,9 +132,8 @@ function createDirectoryLink(targetAbs, linkPath) {
   fs.symlinkSync(targetAbs, linkPath, linkType);
 }
 
-function syncAdapterRoot(adapterRoot, skills) {
-  ensureAdapterRoot(adapterRoot);
-  const adapterAbs = path.join(repoRoot, adapterRoot);
+function syncAdapterDirectory(adapterAbs, skills) {
+  fs.mkdirSync(adapterAbs, { recursive: true });
   const expected = new Set(skills.map((skill) => skill.name));
 
   for (const entry of fs.readdirSync(adapterAbs, { withFileTypes: true })) {
@@ -137,6 +146,14 @@ function syncAdapterRoot(adapterRoot, skills) {
     const linkPath = path.join(adapterAbs, skill.name);
     createDirectoryLink(skill.sourceAbs, linkPath);
   }
+}
+
+function syncRepoAdapterRoot(adapterRoot, skills) {
+  syncAdapterDirectory(path.join(repoRoot, adapterRoot), skills);
+}
+
+function syncGlobalAdapterRoot(adapterAbs, skills) {
+  syncAdapterDirectory(adapterAbs, skills);
 }
 
 function catalogSkillPaths(skills) {
@@ -155,7 +172,7 @@ function writeMarketplaceCatalog(skills) {
 
   const skillPaths = catalogSkillPaths(skills);
   const description =
-    'Platform-agnostic SKILL.md library for Cursor, Claude Code, Codex, and Copilot.';
+    'Platform-agnostic SKILL.md library for Cursor, Claude Code, Codex, Copilot, Kiro CLI, and Antigravity CLI.';
 
   const plugin = {
     name: 'singleton-sd-skills',
@@ -174,6 +191,8 @@ function writeMarketplaceCatalog(skills) {
       'cursor',
       'codex',
       'github-copilot',
+      'kiro-cli',
+      'antigravity-cli',
     ],
     strict: false,
     skills: skillPaths,
@@ -204,12 +223,31 @@ function writeMarketplaceCatalog(skills) {
   writeJson(path.join(pluginDir, 'marketplace.json'), marketplace);
 }
 
+function formatAdapterTarget(adapterAbs) {
+  const home = homeDir();
+  if (adapterAbs.startsWith(`${home}${path.sep}`)) {
+    return `~${adapterAbs.slice(home.length)}`;
+  }
+  return adapterAbs;
+}
+
+function formatAdapterTargets() {
+  return [
+    ...ADAPTER_ROOTS,
+    ...GLOBAL_ADAPTER_ROOTS.map((root) => formatAdapterTarget(root)),
+  ].join(', ');
+}
+
 function main() {
   const skills = discoverSkills();
   detectCollisions(skills);
 
   for (const adapterRoot of ADAPTER_ROOTS) {
-    syncAdapterRoot(adapterRoot, skills);
+    syncRepoAdapterRoot(adapterRoot, skills);
+  }
+
+  for (const adapterAbs of GLOBAL_ADAPTER_ROOTS) {
+    syncGlobalAdapterRoot(adapterAbs, skills);
   }
 
   if (writeCatalog) {
@@ -220,7 +258,7 @@ function main() {
     ? ' Wrote .claude-plugin marketplace catalog.'
     : '';
   console.log(
-    `[singleton-sd/skills] Linked ${skills.length} skills into ${ADAPTER_ROOTS.join(', ')}.${catalogNote}`,
+    `[singleton-sd/skills] Linked ${skills.length} skills into ${formatAdapterTargets()}.${catalogNote}`,
   );
 }
 

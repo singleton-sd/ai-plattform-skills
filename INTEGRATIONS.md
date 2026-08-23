@@ -73,10 +73,13 @@ Canonical skills live under `<category>/<skill-name>/SKILL.md`. Agents discover
 a flat view through generated adapters:
 
 ```
-.agents/skills/<skill-name>/   →  <category>/<skill-name>/   (Codex, Gemini, Copilot)
-.claude/skills/<skill-name>/   →  <category>/<skill-name>/   (Claude Code)
-.cursor/skills/<skill-name>/   →  <category>/<skill-name>/   (Cursor)
-.github/skills/<skill-name>/   →  <category>/<skill-name>/   (VS Code Copilot)
+.agents/skills/<skill-name>/              →  <category>/<skill-name>/   (Codex, Antigravity CLI workspace, Gemini, Copilot)
+.claude/skills/<skill-name>/              →  <category>/<skill-name>/   (Claude Code)
+.cursor/skills/<skill-name>/              →  <category>/<skill-name>/   (Cursor)
+.github/skills/<skill-name>/              →  <category>/<skill-name>/   (VS Code Copilot)
+.kiro/skills/<skill-name>/                →  <category>/<skill-name>/   (Kiro CLI workspace)
+~/.kiro/skills/<skill-name>/              →  <category>/<skill-name>/   (Kiro CLI global)
+~/.gemini/config/skills/<skill-name>/       →  <category>/<skill-name>/   (Antigravity CLI global)
 ```
 
 Claude Code and `npx skills add` also read committed
