@@ -2,7 +2,7 @@
   "name": "singleton-sd-skills",
   "displayName": "Singleton SD Skills",
   "version": "0.1.0",
-  "description": "Platform-agnostic SKILL.md library for Cursor, Claude Code, Codex, and Copilot.",
+  "description": "Platform-agnostic SKILL.md library for Cursor, Claude Code, Codex, Copilot, Kiro CLI, and Antigravity CLI.",
   "author": {
     "name": "Singleton SD",
     "url": "https://github.com/singleton-sd"
@@ -14,7 +14,9 @@
     "claude-code",
     "cursor",
     "codex",
-    "github-copilot"
+    "github-copilot",
+    "kiro-cli",
+    "antigravity-cli"
   ],
   "strict": false,
   "skills": [

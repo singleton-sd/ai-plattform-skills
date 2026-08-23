@@ -73,10 +73,13 @@ Canonical skills live under `<category>/<skill-name>/SKILL.md`. Agents discover
 a flat view through generated adapters:
 
 ```
-.agents/skills/<skill-name>/   →  <category>/<skill-name>/   (Codex, Gemini, Copilot)
-.claude/skills/<skill-name>/   →  <category>/<skill-name>/   (Claude Code)
-.cursor/skills/<skill-name>/   →  <category>/<skill-name>/   (Cursor)
-.github/skills/<skill-name>/   →  <category>/<skill-name>/   (VS Code Copilot)
+.agents/skills/<skill-name>/              →  <category>/<skill-name>/   (Codex, Antigravity CLI workspace, Gemini, Copilot)
+.claude/skills/<skill-name>/              →  <category>/<skill-name>/   (Claude Code)
+.cursor/skills/<skill-name>/              →  <category>/<skill-name>/   (Cursor)
+.github/skills/<skill-name>/              →  <category>/<skill-name>/   (VS Code Copilot)
+.kiro/skills/<skill-name>/                →  <category>/<skill-name>/   (Kiro CLI workspace)
+~/.kiro/skills/<skill-name>/              →  <category>/<skill-name>/   (Kiro CLI global)
+~/.gemini/config/skills/<skill-name>/       →  <category>/<skill-name>/   (Antigravity CLI global)
 ```
 
 Claude Code and `npx skills add` also read committed
@@ -89,8 +92,16 @@ Regenerate adapters **and** the marketplace catalog after adding or renaming a s
 npm run link:skills
 ```
 
-`npm install` / `prepare` rebuilds adapters only. Adapter folders are gitignored —
-commit the canonical skill files plus `.claude-plugin/` catalog updates.
+`npm install` / `prepare` rebuilds repo-local adapters only (no global home links).
+Global home links (`~/.kiro/skills`, `~/.gemini/config/skills`) run only via
+`npm run link:skills` (`--catalog`), not `prepare`.
+
+Global adapter directories are tracked in
+`~/.config/singleton-sd/skills-global-adapters.json`; only repo-owned links are
+removed when skills are renamed or dropped.
+
+Adapter folders are gitignored — commit the canonical skill files plus
+`.claude-plugin/` catalog updates.
 
 When authoring skills, use repo-root-relative paths (for example
 `config/clickup-defaults.json`, not `../../config/clickup-defaults.json`) so
