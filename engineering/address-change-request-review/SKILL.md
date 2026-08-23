@@ -23,10 +23,11 @@ source of truth.
 ## Resolve host and tracker
 
 Use the same host detection as
-[`engineering/submit-change-request`](engineering/submit-change-request/SKILL.md):
+[`engineering/submit-change-request`](../submit-change-request/SKILL.md)
+(user URL → `.skills/profile` `engineeringHost` → authoritative remote):
 
 - GitHub → `gh`
-- GitLab → `glab`
+- GitLab → `glab` / GitLab REST API
 
 Tracker may be ClickUp, a repo issue, both, or neither. Update the same
 tracker(s) the submit step used when reporting blockers or completion.
@@ -71,7 +72,7 @@ Address change request review progress:
 - [ ] 11. Report summary
 ```
 
-Follow [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md) —
+Follow [`engineering/isolated-worktree`](../isolated-worktree/SKILL.md) —
 stay in the feature worktree; do not edit `main` / `master`.
 
 ### 1. Checkout branch
@@ -107,16 +108,35 @@ For review threads (including resolved state), prefer GraphQL or
 
 Filter out resolved threads when the UI/API exposes resolution state.
 
-**GitLab — discussions**
+**GitLab — discussions (preferred: REST API)**
+
+Use the merge-request **discussions** API so you get discussion IDs,
+`resolvable` / `resolved` state, and note bodies even when experimental
+`glab mr note` helpers are missing or behave differently across versions:
+
+```bash
+# List discussions (URL-encode project path)
+glab api "projects/<url-encoded-path>/merge_requests/<iid>/discussions"
+
+# Keep unresolved resolvable threads only (example filter)
+glab api "projects/<url-encoded-path>/merge_requests/<iid>/discussions" \
+  | jq '[.[] | select(.notes[0].resolvable == true and .notes[0].resolved == false)
+        | {id, notes: [.notes[] | {id, body, author: .author.username, position}]}]'
+```
+
+**GitLab — optional convenience (experimental `glab mr note`, glab ≥ 1.114)**
+
+When available, these wrap the same discussions:
 
 ```bash
 glab mr note list <iid> --state unresolved --type all -F json
 ```
 
-Extract with `jq`: discussion `id`, note `body`, `position` (file/line),
-`author`, `resolvable`.
+If `glab mr note list` / `resolve` / `create --reply` fail or omit discussion
+IDs, fall back to the REST API above. Do not invent thread state from plain
+notes that lack `resolvable` / `resolved`.
 
-Also scan `--type general` for bot summaries that are not inline diff notes.
+Also scan general discussions for bot summaries that are not inline diff notes.
 
 ### 3. Expand bot summaries
 
@@ -187,24 +207,44 @@ gh api repos/{owner}/{repo}/pulls/{n}/comments \
 If threaded reply fails, leave a PR comment quoting the finding title and
 linking the fixing commit.
 
-**GitLab — reply on discussion**
+**GitLab — reply on discussion (REST API preferred)**
+
+```bash
+# Reply to an existing discussion
+glab api --method POST \
+  "projects/<url-encoded-path>/merge_requests/<iid>/discussions/<discussion-id>/notes" \
+  -f body='Fixed in <sha>: <summary>.'
+```
+
+**GitLab — optional convenience (experimental)**
 
 ```bash
 glab mr note create <iid> --reply <discussion-prefix> -m "Fixed in <sha>: ..."
 ```
 
-Find discussion prefixes: `glab mr note list <iid> --state unresolved`
-(human output shows `[discussion: abc12345…]` — pass at least 8 characters).
+Pass a full discussion ID or a unique 8+ character prefix from
+`glab mr note list` / the discussions API. If `--reply` is unavailable, use
+the REST API.
 
-Use `--resolvable=false` only for automation/status notes, not for review findings.
+Use non-resolvable notes only for automation/status updates, not for review
+findings.
 
 ### 9. Resolve threads
 
 Resolve only **after** posting a reply (unless the thread was informational).
 
-**GitLab**
+**GitLab — REST API preferred**
 
 ```bash
+glab api --method PUT \
+  "projects/<url-encoded-path>/merge_requests/<iid>/discussions/<discussion-id>" \
+  -f resolved=true
+```
+
+**GitLab — optional convenience (experimental)**
+
+```bash
+# discussion-id first; optional MR iid/branch second
 glab mr note resolve <discussion-id> <iid>
 ```
 
@@ -217,9 +257,9 @@ Re-fetch unresolved threads after resolving to confirm the list is empty.
 
 ### 10. Re-run CI wait
 
-Follow [`engineering/submit-change-request`](engineering/submit-change-request/SKILL.md)
-step 5–6: wait for checks (~10 minutes max by default), fix in-scope CI
-failures, push, and re-wait until green or blocked.
+Follow [`engineering/submit-change-request`](../submit-change-request/SKILL.md)
+step 5–6: wait for checks with an explicit **~10-minute deadline**, fix
+in-scope CI failures, push, and re-wait until green or blocked.
 
 ### 11. Report summary
 
@@ -238,7 +278,7 @@ Include change-request URL, final CI status, and any items needing a human.
 
 ## Bot findings (Bugbot, CodeRabbit, etc.)
 
-[`engineering/fix-bugbot`](engineering/fix-bugbot/SKILL.md) is **deprecated** —
+[`engineering/fix-bugbot`](../fix-bugbot/SKILL.md) is **deprecated** —
 use this skill for all bot and human review feedback on both GitHub and GitLab.
 
 Additional rules for bots:
@@ -271,8 +311,9 @@ Never:
 
 ## Related skills
 
-- [`engineering/submit-change-request`](engineering/submit-change-request/SKILL.md)
-- [`engineering/implement-feature`](engineering/implement-feature/SKILL.md)
-- [`engineering/code-review`](engineering/code-review/SKILL.md) — reviewer role (not author response)
-- [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md)
-- [`engineering/git-conventions`](engineering/git-conventions/SKILL.md)
+- [`engineering/submit-change-request`](../submit-change-request/SKILL.md)
+- [`engineering/implement-feature`](../implement-feature/SKILL.md)
+- [`engineering/code-review`](../code-review/SKILL.md) — reviewer role (not author response)
+- [`engineering/isolated-worktree`](../isolated-worktree/SKILL.md)
+- [`engineering/git-conventions`](../git-conventions/SKILL.md)
+- [`config/tracker-profiles/`](../../config/tracker-profiles/README.md)

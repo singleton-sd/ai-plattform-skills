@@ -24,14 +24,30 @@ mirrors between hosts, submit on the authoritative remote only.
 
 ### Host
 
-1. If the user gave a URL → `github.com` → GitHub; `gitlab.com` (or self-hosted GitLab) → GitLab.
-2. Else inspect `origin`:
+Resolve `engineeringHost` in this order (matches
+[`config/tracker-profiles/`](../../config/tracker-profiles/README.md)):
+
+1. If the user gave a change-request URL → `github.com` → GitHub; `gitlab.com`
+   (or self-hosted GitLab) → GitLab.
+2. Else read consumer `.skills/profile` and use `engineeringHost`
+   (`github` | `gitlab`).
+3. Else infer from the authoritative remote URL (prefer a remote named
+   `gitlab` / `github` when present; otherwise `origin`):
 
 ```bash
-git remote get-url origin
+# Prefer profile when present
+test -f .skills/profile && jq -r '.engineeringHost // empty' .skills/profile
+
+# Fallback: remote URL
+git remote get-url gitlab 2>/dev/null || git remote get-url origin
 ```
 
-3. Confirm CLI auth: `gh auth status` (GitHub) or `glab auth status` (GitLab).
+4. Confirm CLI auth for that host: `gh auth status` (GitHub) or
+   `glab auth status` (GitLab).
+
+Push and open the PR/MR on the **authoritative** remote, not a mirror. In
+mirrored checkouts, `origin` may be GitHub while `engineeringHost` is `gitlab`
+(or the reverse) — use the remote that matches the resolved host.
 
 ### Tracker
 
@@ -54,28 +70,32 @@ Copy and track:
 ```text
 Submit change request progress:
 - [ ] 1. Confirm worktree, branch, and host
-- [ ] 2. Push branch to origin
+- [ ] 2. Push branch to authoritative remote
 - [ ] 3. Create or update PR/MR
 - [ ] 4. Record change-request URL and number
-- [ ] 5. Wait for CI / checks
+- [ ] 5. Wait for CI / checks (max ~10 minutes)
 - [ ] 6. On failure: diagnose, fix in scope, push, re-wait
 - [ ] 7. Report final status
 - [ ] 8. Update ClickUp and/or repo issue
 ```
 
-Follow [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md) and
-[`engineering/git-conventions`](engineering/git-conventions/SKILL.md) before pushing.
+Follow [`engineering/isolated-worktree`](../isolated-worktree/SKILL.md) and
+[`engineering/git-conventions`](../git-conventions/SKILL.md) before pushing.
 
 ### 1. Confirm worktree, branch, and host
 
 - Work happens in a feature/hotfix worktree — not on `main` / `master`.
 - Branch name matches project conventions (for Singleton SD:
   `feature/TICKET-NUMBER[-slug]`).
+- Host is resolved via profile / URL / remote as above.
 
 ### 2. Push branch
 
+Push to the remote that matches the resolved host (examples: `origin`,
+`gitlab`, `github`):
+
 ```bash
-git push -u origin HEAD
+git push -u <authoritative-remote> HEAD
 ```
 
 ### 3. Create or update PR/MR
@@ -115,28 +135,47 @@ Capture the web URL and number (`#N`) for tracker updates and later review work.
 
 ### 5. Wait for CI / checks
 
-Default: wait up to **~10 minutes** for a terminal result. Use one of:
+Default deadline: **~10 minutes** (600 seconds) for a terminal result. Do not
+wait indefinitely. If still queued or running when the deadline expires, stop
+and report **still running / blocked** with the change-request URL and current
+check status.
 
-**GitHub — blocking wait**
+**Preferred: timed poll (either host)**
 
-```bash
-gh pr checks <n> --watch
-# or for Actions workflow runs:
-gh run watch
-```
-
-**GitLab — blocking wait**
+Poll every 60–90 seconds until success, failure, cancellation, or the
+10-minute deadline:
 
 ```bash
-glab ci status --wait --branch <branch>
-# live stream (when the agent can stay attached):
-glab ci status --live --branch <branch>
+DEADLINE=$((SECONDS + 600))
+while (( SECONDS < DEADLINE )); do
+  # GitHub: gh pr checks <n>
+  # GitLab: glab ci status --branch <branch>
+  # Exit the loop early on success / failure / cancelled
+  sleep 60
+done
+# If still running here → report blocked / still running
 ```
 
-**Timed poll (either host)**
+**GitHub — optional watch helper (wrap with timeout)**
 
-If `--watch` / `--wait` is unavailable or times out, poll every 60–90 seconds
-for up to ~10 minutes. Stop early on success, failure, or cancellation.
+```bash
+timeout 600 gh pr checks <n> --watch
+# or:
+timeout 600 gh run watch
+```
+
+If `timeout` is unavailable, use the timed poll loop above.
+
+**GitLab — optional wait helper (wrap with timeout)**
+
+```bash
+timeout 600 glab ci status --wait --branch <branch>
+# live stream only when the agent can stay attached AND still under deadline:
+timeout 600 glab ci status --live --branch <branch>
+```
+
+If `timeout` is unavailable, use the timed poll loop above. Never rely on
+`--watch` / `--wait` / `--live` without an outer deadline.
 
 **Webhook (optional)**
 
@@ -152,7 +191,7 @@ infra use polling; do not block submission on webhook setup.
 3. Never weaken CI config or skip checks to make red green.
 4. If failure looks unrelated (broken default branch), merge or rebase latest
    default branch once, push, and re-wait.
-5. Commit → push → return to step 5.
+5. Commit → push → return to step 5 (reset the 10-minute deadline).
 6. Record failing job name and the first actionable error line in the handoff.
 
 If still failing after reasonable in-scope fixes, report blocked status with
@@ -163,7 +202,7 @@ logs summary — do not silently stop.
 Report:
 
 - Change-request URL
-- CI/checks outcome (green / failed / still running)
+- CI/checks outcome (green / failed / still running after deadline)
 - Commits pushed during CI fixes
 - Anything blocked that needs a human
 
@@ -186,20 +225,23 @@ Report:
 Never:
 
 - Push feature work to `main` / `master`
+- Open a PR/MR on a mirror when `.skills/profile` names a different host
 - Open duplicate PRs/MRs for the same branch without checking first
 - Mark CI green in chat when checks are still running or failed
+- Wait forever on CI without the ~10-minute deadline
 - Store credentials in the skill or commit secrets
 
 ## Composition
 
-Called by [`engineering/implement-feature`](engineering/implement-feature/SKILL.md)
+Called by [`engineering/implement-feature`](../implement-feature/SKILL.md)
 after local verification. After review feedback arrives, hand off to
-[`engineering/address-change-request-review`](engineering/address-change-request-review/SKILL.md).
+[`engineering/address-change-request-review`](../address-change-request-review/SKILL.md).
 
 ## Related skills
 
-- [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md)
-- [`engineering/git-conventions`](engineering/git-conventions/SKILL.md)
-- [`engineering/pipelines-npm`](engineering/pipelines-npm/SKILL.md)
-- [`engineering/address-change-request-review`](engineering/address-change-request-review/SKILL.md)
-- [`operations/task-management`](operations/task-management/SKILL.md)
+- [`engineering/isolated-worktree`](../isolated-worktree/SKILL.md)
+- [`engineering/git-conventions`](../git-conventions/SKILL.md)
+- [`engineering/pipelines-npm`](../pipelines-npm/SKILL.md)
+- [`engineering/address-change-request-review`](../address-change-request-review/SKILL.md)
+- [`operations/task-management`](../../operations/task-management/SKILL.md)
+- [`config/tracker-profiles/`](../../config/tracker-profiles/README.md)
