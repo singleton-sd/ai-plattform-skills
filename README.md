@@ -57,6 +57,7 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 ### Design
 | Skill | Description |
 |-------|-------------|
+| [`design/claude-design-export`](design/claude-design-export/SKILL.md) | Export Claude Design `*.dc.html` folders to AI Markdown + PNG (pages, chrome, logos) |
 | [`design/product-design`](design/product-design/SKILL.md) | Requirement → Google Stitch → approved Design Contract → ticket handoff |
 | [`design/ux-critique`](design/ux-critique/SKILL.md) | Evaluate UI and user flows against usability heuristics |
 | [`design/figma-token-review`](design/figma-token-review/SKILL.md) | Audit Figma design tokens for consistency and naming |

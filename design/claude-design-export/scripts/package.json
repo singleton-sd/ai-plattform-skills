@@ -1,0 +1,9 @@
+{
+  "name": "claude-design-export",
+  "private": true,
+  "type": "module",
+  "description": "CLI for the claude-design-export skill",
+  "dependencies": {
+    "puppeteer-core": "^24.15.0"
+  }
+}
