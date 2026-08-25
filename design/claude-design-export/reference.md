@@ -68,7 +68,9 @@ section. Never replace extracted copy.
 1. Serve `design_dir` over HTTP on **127.0.0.1** (not `file://`, not `0.0.0.0`)
    so `dc-import` sibling fetch works without exposing the folder on the LAN.
 2. Reject path traversal with `path.relative` (no `..`, stay under root).
-3. Wait for `#dc-root` plus kind-specific selectors; **fail** on timeout.
+3. Wait for `#dc-root` plus selectors the document declares (`Header`/`Footer`
+   imports or inline chrome); **fail** on timeout. Do not require a footer when
+   the page does not declare one.
 4. Override DC `html,body{height:100%}` to `height:auto` before `fullPage`.
 5. Wait for `document.fonts.ready` and in-document `<img>` decode.
 6. Chrome: `CHROME_PATH`, else Linux Chrome, else WSL

@@ -49,13 +49,13 @@ The package is **public** — no GitLab token required. Point the `@singleton-sd
 Then install:
 
 ```bash
-npm install @singleton-sd/ai-plattform-tools-claude-design-export
+npm install @singleton-sd/ai-plattform-tools-claude-design-export@0.2.0
 ```
 
 **One-off run** (no install; `.npmrc` scope line still required):
 
 ```bash
-npx @singleton-sd/ai-plattform-tools-claude-design-export \
+npx @singleton-sd/ai-plattform-tools-claude-design-export@0.2.0 \
   --in "/path/to/design-folder" \
   --out "/path/to/ai-export"
 ```
@@ -64,20 +64,29 @@ After install, the CLI binary is `claude-design-export` (from `node_modules/.bin
 
 ### Install from source (development)
 
+Standalone checkout:
+
 ```bash
 git clone git@gitlab.com:singleton-sd/ai-plattform/tools/claude-design-export.git
 cd claude-design-export
 yarn install
+node claude-design-export.mjs --in "$DESIGN_DIR" --out "$OUT_DIR"
 ```
 
-When working inside the ai-plattform workspace, the tool repo is at `tools/claude-design-export/`.
+ai-plattform workspace checkout (repo at `tools/claude-design-export/`):
+
+```bash
+cd tools/claude-design-export
+yarn install
+node claude-design-export.mjs --in "$DESIGN_DIR" --out "$OUT_DIR"
+```
 
 ## Workflow
 
-```
+```text
 Claude Design export:
 - [ ] 1. Confirm design_dir
-- [ ] 2. Install `@singleton-sd/ai-plattform-tools-claude-design-export` if not present
+- [ ] 2. Install `@singleton-sd/ai-plattform-tools-claude-design-export@0.2.0` if not present
 - [ ] 3. Run the CLI
 - [ ] 4. Check manifest.json (every page has md + png)
 - [ ] 5. Enrich MD from PNG (visual notes only — never invent copy)
@@ -95,15 +104,7 @@ claude-design-export \
 ```
 
 If the package is not on PATH, use `npx claude-design-export` or
-`npx @singleton-sd/ai-plattform-tools-claude-design-export`.
-
-When developing from source:
-
-```bash
-node tools/claude-design-export/claude-design-export.mjs \
-  --in "$DESIGN_DIR" \
-  --out "$OUT_DIR"
-```
+`npx @singleton-sd/ai-plattform-tools-claude-design-export@0.2.0`.
 
 `--skip-png` if you only need Markdown. `--skip-md` if you only need screenshots.
 On Windows PowerShell, use quoted paths.
