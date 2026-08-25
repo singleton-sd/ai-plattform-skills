@@ -38,6 +38,11 @@ function slugify(name) {
     .replace(/^-|-$/g, "") || "page";
 }
 
+/** Slug from path relative to the design root (handles nested duplicates). */
+function slugFromSource(sourceRel) {
+  return slugify(sourceRel.replace(/\.dc\.html$/i, "").split(/[\\/]+/).join("-"));
+}
+
 function decodeEntities(s) {
   return s
     .replace(/&nbsp;/g, " ")
@@ -95,27 +100,18 @@ function classify(basename, html) {
   ) {
     return "brand";
   }
+  if (/^header$/i.test(base) || /^footer$/i.test(base)) return "chrome";
+
+  // Standalone chrome only: one of header/footer, no page imports, no page headings/sections.
   const hasImport = /<dc-import\b/i.test(html);
-  if (/^header$/i.test(base) || (/<header[\s>]/i.test(html) && !hasImport && !/<h1[\s>]/i.test(html))) {
-    return "chrome";
-  }
-  if (/^footer$/i.test(base) || (/<footer[\s>]/i.test(html) && !hasImport && !/<h1[\s>]/i.test(html))) {
-    return "chrome";
+  if (!hasImport) {
+    const hasHeader = /<header[\s>]/.test(html);
+    const hasFooter = /<footer[\s>]/.test(html);
+    const hasPageStructure = /<h[12][\s>]|<section[\s>]/i.test(html);
+    if (hasHeader && !hasFooter && !hasPageStructure) return "chrome";
+    if (hasFooter && !hasHeader && !hasPageStructure) return "chrome";
   }
   return "page";
-}
-
-function extractSlots(html) {
-  return matchAll(
-    /<image-slot\b([^>]*)>/gi,
-    html,
-  ).map((m) => {
-    const attrs = m[1];
-    const id = /(?:\bid=["']([^"']+)["'])/i.exec(attrs)?.[1] || "";
-    const placeholder = /placeholder=["']([^"']*)["']/i.exec(attrs)?.[1] || "";
-    const idAttr = /id=["']([^"']+)["']/i.exec(attrs)?.[1] || id;
-    return { id: idAttr, placeholder: decodeEntities(placeholder) };
-  });
 }
 
 function extractImports(html) {
@@ -128,24 +124,59 @@ function extractHeadings(html, tag) {
   );
 }
 
-function extractLinks(html) {
-  return matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, html)
-    .map((m) => ({
-      href: /href=["']([^"']+)["']/i.exec(m[1])?.[1] || "",
-      label: stripTagsKeepText(m[2]).replace(/\s+/g, " "),
-    }))
-    .filter((x) => x.label && x.href && !x.href.includes("{{") && !x.label.includes("{{"));
+/** Reading-order blocks for Markdown body generation. */
+function extractBlocks(html) {
+  const blocks = [];
+  const re =
+    /<(h1|h2|p)\b[^>]*>([\s\S]*?)<\/\1>|<a\b([^>]*)>([\s\S]*?)<\/a>|<image-slot\b([^>]*)>(?:[\s\S]*?<\/image-slot>)?/gi;
+  let m;
+  while ((m = re.exec(html))) {
+    if (m[1]) {
+      const text = stripTagsKeepText(m[2]).replace(/\s+/g, " ");
+      if (!text) continue;
+      if (m[1] === "p" && text.length <= 20) continue;
+      blocks.push({ type: m[1], text });
+      continue;
+    }
+    if (m[3] != null) {
+      const href = /href=["']([^"']+)["']/i.exec(m[3])?.[1] || "";
+      const label = stripTagsKeepText(m[4]).replace(/\s+/g, " ");
+      if (label && href && !href.includes("{{") && !label.includes("{{") && !href.startsWith("#")) {
+        blocks.push({ type: "a", label, href });
+      }
+      continue;
+    }
+    if (m[5] != null) {
+      const attrs = m[5];
+      const id = /id=["']([^"']+)["']/i.exec(attrs)?.[1] || "";
+      const placeholder = decodeEntities(/placeholder=["']([^"']*)["']/i.exec(attrs)?.[1] || "");
+      blocks.push({ type: "slot", id, placeholder });
+    }
+  }
+  return blocks;
 }
 
-function extractLockupsLoose(html) {
-  const unique = [...new Set(matchAll(/\bid=["'](\d+[a-z])["']/gi, html).map((m) => m[1]))];
+/** Lockups: only `.dv-opt` elements with ids like `3a`. */
+function extractLockups(html) {
+  const ids = [
+    ...matchAll(
+      /<[^>]*\bclass=["'][^"']*\bdv-opt\b[^"']*["'][^>]*\bid=["'](\d+[a-z])["']/gi,
+      html,
+    ).map((m) => m[1]),
+    ...matchAll(
+      /<[^>]*\bid=["'](\d+[a-z])["'][^>]*\bclass=["'][^"']*\bdv-opt\b[^"']*["']/gi,
+      html,
+    ).map((m) => m[1]),
+  ];
+  const unique = [...new Set(ids)];
   return unique.map((id) => {
-    const idx = html.search(new RegExp(`id=["']${id}["']`));
-    const window = idx < 0 ? "" : html.slice(Math.max(0, idx - 120), idx + 2200);
+    const idx = html.search(new RegExp(`\\bid=["']${id}["']`));
+    // Only look forward from the id so we do not pick a previous sibling's note.
+    const after = idx < 0 ? "" : html.slice(idx, idx + 2200);
     const labelRaw =
-      /class=["'][^"']*\bdv-olabel\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i.exec(window)?.[1] || "";
+      /class=["'][^"']*\bdv-olabel\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i.exec(after)?.[1] || "";
     const noteRaw =
-      /class=["'][^"']*\blg-note\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i.exec(window)?.[1] || "";
+      /class=["'][^"']*\blg-note\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i.exec(after)?.[1] || "";
     return {
       id,
       label: stripTagsKeepText(labelRaw).replace(new RegExp(`^${id}\\s*`, "i"), "").trim(),
@@ -170,7 +201,8 @@ function yamlQuote(s) {
 }
 
 function toMd(entry) {
-  const { kind, source, slug, title, chrome, slots, links, h2, paragraphs, lockups } = entry;
+  const { kind, source, slug, title, chrome, blocks, lockups } = entry;
+  const slots = blocks.filter((b) => b.type === "slot");
   const lines = [
     "---",
     `page: ${yamlQuote(title)}`,
@@ -186,6 +218,7 @@ function toMd(entry) {
     }
   }
   lines.push("---", "", `# ${title}`, "");
+
   if (kind === "brand" && lockups.length) {
     lines.push("## Lockups", "");
     for (const l of lockups) {
@@ -193,28 +226,28 @@ function toMd(entry) {
       if (l.note) lines.push("", l.note);
       lines.push("");
     }
-  } else {
-    if (paragraphs.length) {
-      lines.push("## Copy", "");
-      for (const p of paragraphs) lines.push(p, "");
-    }
-    if (links.length) {
-      lines.push("## Links and CTAs", "");
-      for (const l of links) lines.push(`- ${l.label} → \`${l.href}\``);
-      lines.push("");
-    }
-    if (slots.length) {
-      lines.push("## Image slots", "");
-      for (const s of slots) {
-        lines.push(`- \`${s.id || "(no id)"}\` — ${s.placeholder || "Drop an image"}`);
-      }
-      lines.push("");
-    }
   }
-  if (h2.length && kind !== "brand") {
-    lines.push("## Sections (source H2)", "");
-    for (const h of h2) lines.push(`- ${h}`);
-    lines.push("");
+
+  for (const b of blocks) {
+    if (b.type === "h1") continue;
+    if (b.type === "h2") {
+      lines.push(`## ${b.text}`, "");
+      continue;
+    }
+    if (b.type === "p") {
+      lines.push(b.text, "");
+      continue;
+    }
+    if (b.type === "a") {
+      lines.push(`- ${b.label} → \`${b.href}\``, "");
+      continue;
+    }
+    if (b.type === "slot") {
+      lines.push(
+        `- Image slot \`${b.id || "(no id)"}\` — ${b.placeholder || "Drop an image"}`,
+        "",
+      );
+    }
   }
   return lines.join("\n");
 }
@@ -231,33 +264,33 @@ function discover(designDir) {
   }
   walk(designDir);
   files.sort((a, b) => a.localeCompare(b));
+
+  const seenSlugs = new Map();
   return files.map((abs) => {
     const source = path.relative(designDir, abs);
     const html = fs.readFileSync(abs, "utf8");
     const dc = innerDc(html);
     const kind = classify(path.basename(abs), html);
-    const slug = slugify(path.basename(abs));
-    const title = titleFrom(path.basename(abs), dc);
+    const slug = slugFromSource(source);
+    if (seenSlugs.has(slug)) {
+      throw new Error(
+        `Duplicate slug "${slug}" for ${source} and ${seenSlugs.get(slug)}. Rename one of the sources.`,
+      );
+    }
+    seenSlugs.set(slug, source);
+    const blocks = extractBlocks(dc);
+    const title =
+      blocks.find((b) => b.type === "h1")?.text || titleFrom(path.basename(abs), dc);
     const chrome = extractImports(dc);
-    const slots = extractSlots(dc);
-    const links = extractLinks(dc);
-    const h1 = extractHeadings(dc, "h1");
-    const h2 = extractHeadings(dc, "h2");
-    const lockups = kind === "brand" ? extractLockupsLoose(dc) : [];
-    const paragraphs = matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi, dc)
-      .map((m) => stripTagsKeepText(m[1]).replace(/\s+/g, " "))
-      .filter((p) => p.length > 20);
+    const lockups = kind === "brand" ? extractLockups(dc) : [];
     return {
       abs,
       source,
       slug,
       kind,
-      title: h1[0] || title,
+      title,
       chrome,
-      slots,
-      links,
-      h2,
-      paragraphs,
+      blocks,
       lockups,
       md: `${slug}.md`,
       png: `${slug}.png`,
@@ -282,14 +315,27 @@ ${rows}
   fs.writeFileSync(path.join(outDir, "INDEX.md"), md);
 }
 
+function isInsideRoot(root, candidate) {
+  const resolvedRoot = path.resolve(root);
+  const resolved = path.resolve(candidate);
+  const rel = path.relative(resolvedRoot, resolved);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
 function startServer(root) {
+  const resolvedRoot = path.resolve(root);
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
       try {
         const raw = decodeURIComponent((req.url || "/").split("?")[0]);
         const rel = raw === "/" ? "index.html" : raw.replace(/^\//, "");
-        const file = path.normalize(path.join(root, rel));
-        if (!file.startsWith(path.normalize(root))) {
+        if (rel.split(/[\\/]/).includes("..")) {
+          res.writeHead(403);
+          res.end();
+          return;
+        }
+        const file = path.resolve(resolvedRoot, rel);
+        if (!isInsideRoot(resolvedRoot, file)) {
           res.writeHead(403);
           res.end();
           return;
@@ -316,7 +362,8 @@ function startServer(root) {
         res.end(String(err));
       }
     });
-    server.listen(0, "0.0.0.0", () => {
+    // Loopback only — Windows Chrome on mirrored WSL still reaches 127.0.0.1.
+    server.listen(0, "127.0.0.1", () => {
       const { port } = server.address();
       resolve({ server, port });
     });
@@ -419,26 +466,50 @@ async function launchChrome(chromePath) {
     ],
     { stdio: "ignore" },
   );
-  await waitHttp(`http://127.0.0.1:${debugPort}/json/version`);
-  const browser = await puppeteer.connect({
-    browserURL: `http://127.0.0.1:${debugPort}`,
-    defaultViewport: null,
-  });
-  return {
-    browser,
-    async close() {
-      try {
-        await browser.disconnect();
-      } catch {
-        /* ignore */
-      }
-      try {
-        child.kill();
-      } catch {
-        /* ignore */
-      }
-    },
+
+  const cleanupFailedStart = () => {
+    try {
+      child.kill();
+    } catch {
+      /* ignore */
+    }
+    try {
+      fs.rmSync(userData, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   };
+
+  try {
+    await waitHttp(`http://127.0.0.1:${debugPort}/json/version`);
+    const browser = await puppeteer.connect({
+      browserURL: `http://127.0.0.1:${debugPort}`,
+      defaultViewport: null,
+    });
+    return {
+      browser,
+      async close() {
+        try {
+          await browser.disconnect();
+        } catch {
+          /* ignore */
+        }
+        try {
+          child.kill();
+        } catch {
+          /* ignore */
+        }
+        try {
+          fs.rmSync(userData, { recursive: true, force: true });
+        } catch {
+          /* ignore */
+        }
+      },
+    };
+  } catch (err) {
+    cleanupFailedStart();
+    throw err;
+  }
 }
 
 const HEIGHT_CSS = `
@@ -449,27 +520,26 @@ const HEIGHT_CSS = `
 
 async function waitReady(page, kind) {
   await page.evaluate(() => document.fonts.ready).catch(() => {});
+  // DC boot replaces <x-dc> with #dc-root.
+  await page.waitForSelector("#dc-root", { timeout: 20000 });
   if (kind === "page") {
-    await page.waitForSelector("header", { timeout: 20000 }).catch(() => {});
-    await page.waitForSelector("footer", { timeout: 20000 }).catch(() => {});
+    await page.waitForSelector("header", { timeout: 20000 });
+    await page.waitForSelector("footer", { timeout: 20000 });
   } else if (kind === "chrome") {
     await Promise.race([
       page.waitForSelector("header", { timeout: 20000 }),
       page.waitForSelector("footer", { timeout: 20000 }),
-    ]).catch(() => {});
+    ]);
   } else {
-    await page.waitForSelector(".dv-turn, .dv-opt, header, footer", { timeout: 20000 }).catch(() => {});
+    await page.waitForSelector(".dv-turn, .dv-opt", { timeout: 20000 });
   }
-  await page
-    .waitForFunction(
-      () => [...document.images].every((img) => img.complete),
-      { timeout: 15000 },
-    )
-    .catch(() => {});
+  await page.waitForFunction(() => [...document.images].every((img) => img.complete), {
+    timeout: 15000,
+  });
   await new Promise((r) => setTimeout(r, 400));
 }
 
-async function screenshotEntries({ entries, designDir, outDir, width, port }) {
+async function screenshotEntries({ entries, outDir, width, port }) {
   const chrome = findChrome();
   if (!chrome) {
     throw new Error("No Chrome found. Set CHROME_PATH or install Chrome.");
@@ -489,8 +559,8 @@ async function screenshotEntries({ entries, designDir, outDir, width, port }) {
       if (e.kind === "chrome") {
         const sel = (await page.$("header")) ? "header" : "footer";
         const handle = await page.$(sel);
-        if (handle) {
-          const box = await handle.boundingBox();
+        const box = handle ? await handle.boundingBox() : null;
+        if (handle && box) {
           await page.screenshot({
             path: dest,
             type: "png",
@@ -512,10 +582,15 @@ async function screenshotEntries({ entries, designDir, outDir, width, port }) {
         fs.mkdirSync(dir, { recursive: true });
         e.lockupPngs = [];
         for (const l of e.lockups) {
-          const node = await page.$(`[id="${l.id}"]`);
-          if (!node) continue;
+          const node = await page.$(`.dv-opt[id="${l.id}"]`);
+          if (!node) {
+            throw new Error(`Missing lockup node: ${e.slug}/${l.id}`);
+          }
           const crop = path.join(dir, `${l.id}.png`);
           await node.screenshot({ path: crop, type: "png" });
+          if (!fs.existsSync(crop)) {
+            throw new Error(`Missing lockup crop: ${crop}`);
+          }
           e.lockupPngs.push(`${e.slug}/${l.id}.png`);
         }
       }
@@ -554,7 +629,7 @@ async function main() {
   if (!args.skipPng) {
     const { server, port } = await startServer(designDir);
     try {
-      await screenshotEntries({ entries, designDir, outDir, width: args.width, port });
+      await screenshotEntries({ entries, outDir, width: args.width, port });
     } finally {
       server.close();
     }
@@ -577,9 +652,22 @@ async function main() {
   };
   fs.writeFileSync(path.join(outDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
 
-  const missingPng = args.skipPng ? [] : entries.filter((e) => !fs.existsSync(path.join(outDir, e.png)));
-  if (missingPng.length) {
-    throw new Error(`Missing PNG: ${missingPng.map((e) => e.slug).join(", ")}`);
+  if (!args.skipPng) {
+    const missingPng = entries.filter((e) => !fs.existsSync(path.join(outDir, e.png)));
+    if (missingPng.length) {
+      throw new Error(`Missing PNG: ${missingPng.map((e) => e.slug).join(", ")}`);
+    }
+    const missingLockups = [];
+    for (const e of entries) {
+      if (e.kind !== "brand" || !e.lockups.length) continue;
+      for (const l of e.lockups) {
+        const crop = path.join(outDir, e.slug, `${l.id}.png`);
+        if (!fs.existsSync(crop)) missingLockups.push(`${e.slug}/${l.id}.png`);
+      }
+    }
+    if (missingLockups.length) {
+      throw new Error(`Missing lockup crops: ${missingLockups.join(", ")}`);
+    }
   }
   console.log(`wrote ${outDir}`);
 }
