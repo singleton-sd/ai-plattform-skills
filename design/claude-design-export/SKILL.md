@@ -49,13 +49,13 @@ The package is **public** — no GitLab token required. Point the `@singleton-sd
 Then install:
 
 ```bash
-npm install @singleton-sd/ai-plattform-tools-claude-design-export@0.2.0
+npm install @singleton-sd/ai-plattform-tools-claude-design-export@0.2.1
 ```
 
 **One-off run** (no install; `.npmrc` scope line still required):
 
 ```bash
-npx @singleton-sd/ai-plattform-tools-claude-design-export@0.2.0 \
+npx @singleton-sd/ai-plattform-tools-claude-design-export@0.2.1 \
   --in "/path/to/design-folder" \
   --out "/path/to/ai-export"
 ```
@@ -86,7 +86,7 @@ node claude-design-export.mjs --in "$DESIGN_DIR" --out "$OUT_DIR"
 ```text
 Claude Design export:
 - [ ] 1. Confirm design_dir
-- [ ] 2. Install `@singleton-sd/ai-plattform-tools-claude-design-export@0.2.0` if not present
+- [ ] 2. Install `@singleton-sd/ai-plattform-tools-claude-design-export@0.2.1` if not present
 - [ ] 3. Run the CLI
 - [ ] 4. Check manifest.json (every page has md + png)
 - [ ] 5. Enrich MD from PNG (visual notes only — never invent copy)
@@ -106,7 +106,7 @@ claude-design-export \
 If the package is not on PATH, use:
 
 ```bash
-npx @singleton-sd/ai-plattform-tools-claude-design-export@0.2.0 \
+npx @singleton-sd/ai-plattform-tools-claude-design-export@0.2.1 \
   --in "$DESIGN_DIR" \
   --out "$OUT_DIR"
 ```
