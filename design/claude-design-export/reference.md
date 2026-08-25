@@ -1,9 +1,13 @@
 # Claude Design export — reference
 
+Companion docs for the
+[`@singleton-sd/ai-plattform-tools-claude-design-export`](https://gitlab.com/singleton-sd/ai-plattform/tools/claude-design-export)
+CLI used by this skill.
+
 ## CLI
 
 ```bash
-node claude-design-export.mjs --in DIR --out DIR [--width 1440] [--skip-png] [--skip-md]
+claude-design-export --in DIR --out DIR [--width 1440] [--skip-png] [--skip-md]
 ```
 
 Writes:
