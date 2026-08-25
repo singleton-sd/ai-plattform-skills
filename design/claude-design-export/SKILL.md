@@ -103,8 +103,13 @@ claude-design-export \
   --out "$OUT_DIR"
 ```
 
-If the package is not on PATH, use `npx claude-design-export` or
-`npx @singleton-sd/ai-plattform-tools-claude-design-export@0.2.0`.
+If the package is not on PATH, use:
+
+```bash
+npx @singleton-sd/ai-plattform-tools-claude-design-export@0.2.0 \
+  --in "$DESIGN_DIR" \
+  --out "$OUT_DIR"
+```
 
 `--skip-png` if you only need Markdown. `--skip-md` if you only need screenshots.
 On Windows PowerShell, use quoted paths.
