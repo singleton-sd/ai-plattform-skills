@@ -21,6 +21,7 @@
   "strict": false,
   "skills": [
     "./compliance/asic",
+    "./design/claude-design-export",
     "./design/figma-token-review",
     "./design/product-design",
     "./design/ux-critique",
