@@ -67,7 +67,7 @@ Address change request review progress:
 - [ ] 6. Run local verification (lint, typecheck, tests, build)
 - [ ] 7. Commit and push
 - [ ] 8. Reply on each thread (fix or justification)
-- [ ] 9. Resolve threads where addressed
+- [ ] 9. Resolve threads only when repo policy permits; otherwise leave open for reviewer or bot
 - [ ] 10. Re-run submit-change-request CI wait
 - [ ] 11. Report summary
 ```
@@ -198,14 +198,25 @@ Addressed <part> in <sha>. Remaining concern: <reason>.
 
 **GitHub — reply on review comment**
 
+Prefer replying on the **review thread**, not as a top-level PR comment. A
+top-level comment does not satisfy this step when an inline thread exists.
+
 ```bash
+# GraphQL (preferred when you have the thread id)
+gh api graphql -f query='mutation($id:ID!,$body:String!){
+  addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$id,body:$body}){
+    comment{url}
+  }
+}' -f id='<thread-id>' -f body='Fixed in <sha>: <summary>.'
+
+# REST fallback (reply to a specific review comment id)
 gh api repos/{owner}/{repo}/pulls/{n}/comments \
   -f body='Fixed in <sha>: <summary>.' \
   -F in_reply_to=<comment_id>
 ```
 
-If threaded reply fails, leave a PR comment quoting the finding title and
-linking the fixing commit.
+If threaded reply is impossible (summary-only bot note with no thread), leave a
+PR comment quoting the finding title and linking the fixing commit.
 
 **GitLab — reply on discussion (REST API preferred)**
 
@@ -231,7 +242,12 @@ findings.
 
 ### 9. Resolve threads
 
-Resolve only **after** posting a reply (unless the thread was informational).
+Resolve only **after** posting a reply (unless the thread was informational),
+and only when the **repository policy** allows agents to resolve threads.
+
+**Default (GitHub):** reply in-thread, then **leave the thread unresolved** for
+the human reviewer or bot to close after they read the reply. Many repos
+(including post-kit) forbid agents from resolving review threads.
 
 **GitLab — REST API preferred**
 
@@ -250,10 +266,14 @@ glab mr note resolve <discussion-id> <iid>
 
 **GitHub**
 
-Use GraphQL `resolveReviewThread` when available, or follow project convention
-(if resolution is manual-only, the reply alone may suffice).
+Use GraphQL `resolveReviewThread` only when the repo's `AGENTS.md` (or
+equivalent) explicitly instructs agents to resolve threads. Otherwise the
+in-thread reply is sufficient — do not resolve on the author's behalf.
 
-Re-fetch unresolved threads after resolving to confirm the list is empty.
+If the repo **allows** agents to resolve threads, re-fetch and confirm the
+unresolved list is empty. If the default applies (leave threads open), confirm
+every addressed thread has an in-thread reply and remains unresolved — an
+open addressed thread is expected, not a blocker.
 
 ### 10. Re-run CI wait
 

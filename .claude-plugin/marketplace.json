@@ -24,6 +24,7 @@
         "./documents/pdf-shrink",
         "./documents/pdf-to-markdown",
         "./engineering/address-change-request-review",
+        "./engineering/babysit-pr",
         "./engineering/backend",
         "./engineering/code-review",
         "./engineering/fix-bugbot",
