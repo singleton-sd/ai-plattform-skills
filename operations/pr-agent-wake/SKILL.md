@@ -39,7 +39,9 @@ Summary:
 2. Reproduce failures locally when practical.
 3. Fix the smallest change that clears the blocker.
 4. Push to the same branch (`--force-with-lease` only after rebase, when required).
-5. Reply in-thread on each resolved review comment; resolve threads when appropriate.
+5. Reply in-thread on each addressed review comment; resolve threads only when
+   the repo policy allows agents to do so (otherwise leave open for the
+   reviewer or bot).
 6. Re-check required CI / mergeability.
 
 ## Rules
