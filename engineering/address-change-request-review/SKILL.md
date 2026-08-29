@@ -67,7 +67,7 @@ Address change request review progress:
 - [ ] 6. Run local verification (lint, typecheck, tests, build)
 - [ ] 7. Commit and push
 - [ ] 8. Reply on each thread (fix or justification)
-- [ ] 9. Resolve threads where addressed
+- [ ] 9. Resolve threads only when repo policy permits; otherwise leave open for reviewer or bot
 - [ ] 10. Re-run submit-change-request CI wait
 - [ ] 11. Report summary
 ```

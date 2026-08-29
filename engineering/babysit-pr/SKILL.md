@@ -54,21 +54,19 @@ gh api graphql -f query='mutation($id:ID!,$body:String!){
 }' -f id='<thread-id>' -f body='Fixed in <sha>: <summary>. Leaving this thread open for you to resolve.'
 ```
 
-List unresolved threads (paginate — GitHub does not filter by `isResolved`):
+List unresolved threads (paginate; filter `isResolved: false` client-side):
 
 ```bash
-# Repeat with after=<endCursor> while pageInfo.hasNextPage is true.
-# Keep only nodes where isResolved is false.
-gh api graphql -f query='query($n:Int!,$after:String){
+gh api graphql --paginate -f query='query($n:Int!,$endCursor:String){
   repository(owner:"<owner>",name:"<repo>"){
     pullRequest(number:$n){
-      reviewThreads(first:50, after:$after){
+      reviewThreads(first:50, after:$endCursor){
         pageInfo{ hasNextPage endCursor }
         nodes{ id isResolved path line }
       }
     }
   }
-}' -F n=<pr-number> -f after=
+}' -F n=<pr-number>
 ```
 
 ## Guardrails
