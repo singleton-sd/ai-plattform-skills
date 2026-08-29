@@ -270,7 +270,10 @@ Use GraphQL `resolveReviewThread` only when the repo's `AGENTS.md` (or
 equivalent) explicitly instructs agents to resolve threads. Otherwise the
 in-thread reply is sufficient — do not resolve on the author's behalf.
 
-Re-fetch unresolved threads after resolving to confirm the list is empty.
+If the repo **allows** agents to resolve threads, re-fetch and confirm the
+unresolved list is empty. If the default applies (leave threads open), confirm
+every addressed thread has an in-thread reply and remains unresolved — an
+open addressed thread is expected, not a blocker.
 
 ### 10. Re-run CI wait
 

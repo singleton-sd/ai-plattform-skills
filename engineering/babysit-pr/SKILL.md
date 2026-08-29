@@ -54,18 +54,21 @@ gh api graphql -f query='mutation($id:ID!,$body:String!){
 }' -f id='<thread-id>' -f body='Fixed in <sha>: <summary>. Leaving this thread open for you to resolve.'
 ```
 
-List unresolved threads:
+List unresolved threads (paginate — GitHub does not filter by `isResolved`):
 
 ```bash
-gh api graphql -f query='query($n:Int!){
+# Repeat with after=<endCursor> while pageInfo.hasNextPage is true.
+# Keep only nodes where isResolved is false.
+gh api graphql -f query='query($n:Int!,$after:String){
   repository(owner:"<owner>",name:"<repo>"){
     pullRequest(number:$n){
-      reviewThreads(first:50){
+      reviewThreads(first:50, after:$after){
+        pageInfo{ hasNextPage endCursor }
         nodes{ id isResolved path line }
       }
     }
   }
-}' -F n=<pr-number>
+}' -F n=<pr-number> -f after=
 ```
 
 ## Guardrails
@@ -78,5 +81,5 @@ gh api graphql -f query='query($n:Int!){
 
 - [`engineering/address-change-request-review`](../address-change-request-review/SKILL.md)
 - [`engineering/submit-change-request`](../submit-change-request/SKILL.md)
-- [`operations/pr-agent-wake`](../operations/pr-agent-wake/SKILL.md)
+- [`operations/pr-agent-wake`](operations/pr-agent-wake/SKILL.md)
 - [`engineering/isolated-worktree`](../isolated-worktree/SKILL.md)

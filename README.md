@@ -34,7 +34,7 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 | Skill | Description |
 |-------|-------------|
 | [`engineering/address-change-request-review`](engineering/address-change-request-review/SKILL.md) | Triage PR/MR review feedback on GitHub or GitLab; fix or justify; reply in-thread |
-| [`engineering/babysit-pr`](engineering/babysit-pr/SKILL.md) | Keep a PR/MR merge-ready: conflicts, CI, in-thread review replies; leave thread resolution to reviewer unless repo policy says otherwise |
+| [`engineering/babysit-pr`](engineering/babysit-pr/SKILL.md) | Keep a PR/MR merge-ready: conflicts, CI, in-thread review replies; leave thread resolution to reviewer or bot unless repo policy says otherwise |
 | [`engineering/backend`](engineering/backend/SKILL.md) | NestJS + SQL Server + Prisma backend guidelines |
 | [`engineering/code-review`](engineering/code-review/SKILL.md) | Review code for quality, correctness, and security |
 | [`engineering/fix-bugbot`](engineering/fix-bugbot/SKILL.md) | **Deprecated** — use address-change-request-review for bot findings |
