@@ -86,6 +86,7 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 | [`writing/summarization`](writing/summarization/SKILL.md) | Distill documents, threads, or transcripts into clear summaries |
 | [`writing/translation`](writing/translation/SKILL.md) | Translate content while preserving tone and intent |
 | [`writing/tone-adjustment`](writing/tone-adjustment/SKILL.md) | Rewrite content to match a target tone |
+| [`writing/attention-friendly-response`](writing/attention-friendly-response/SKILL.md) | Opt-in answer-first, concise, scannable chat replies (presentation only) |
 
 ### Documents
 | Skill | Description |

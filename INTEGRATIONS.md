@@ -67,6 +67,15 @@ claude plugin marketplace add singleton-sd/ai-plattform-skills
 
 Do not merge feature work on GitHub first. Merge on GitLab, then sync the mirror.
 
+## Opt-in communication style
+
+[`writing/attention-friendly-response`](writing/attention-friendly-response/SKILL.md)
+is an **opt-in** chat presentation skill (answer-first, concise, scannable). It
+is not base always-on policy. Enable by invoking the skill or asking for
+attention-friendly replies; override with “normal detail” / “full explanation”.
+It installs like any other skill via the adapters and marketplace below
+(Claude Code: `.claude/skills/…`, Codex: `.agents/skills/…`).
+
 ## Agent skill adapters
 
 Canonical skills live under `<category>/<skill-name>/SKILL.md`. Agents discover
