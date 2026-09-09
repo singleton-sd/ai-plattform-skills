@@ -64,6 +64,7 @@
     "./product/idea-to-delivery",
     "./product/prd-generator",
     "./product/refine-idea",
+    "./writing/attention-friendly-response",
     "./writing/summarization",
     "./writing/tone-adjustment",
     "./writing/translation"

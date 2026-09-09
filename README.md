@@ -6,7 +6,7 @@ Platform-agnostic skill library for AI agents. Skills work with any LLM that can
 
 Part of the [`singleton-sd/ai-plattform`](https://gitlab.com/singleton-sd/ai-plattform) umbrella.
 
-**Source of truth:** [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills). [GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a public mirror for skills.sh and Claude Code marketplace installs.
+**Source of truth:** [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills). [GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a **read-only** public mirror for skills.sh and Claude Code marketplace installs — never open GitHub PRs or push feature branches there; ship GitLab MRs only.
 
 ## Installing a skill
 
@@ -86,6 +86,7 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 | [`writing/summarization`](writing/summarization/SKILL.md) | Distill documents, threads, or transcripts into clear summaries |
 | [`writing/translation`](writing/translation/SKILL.md) | Translate content while preserving tone and intent |
 | [`writing/tone-adjustment`](writing/tone-adjustment/SKILL.md) | Rewrite content to match a target tone |
+| [`writing/attention-friendly-response`](writing/attention-friendly-response/SKILL.md) | Opt-in answer-first, concise, scannable chat replies (presentation only) |
 
 ### Documents
 | Skill | Description |
@@ -138,7 +139,7 @@ Feature idea (ClickUp or conversation)
 
 Optional ClickUp product feature kept for visibility; engineering issue may include `Product feature: <ClickUp URL>` (read-only; no sync automation).
 
-**Source of truth:** [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills). [GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a synchronized public mirror.
+**Source of truth:** [GitLab](https://gitlab.com/singleton-sd/ai-plattform/skills). [GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a read-only public mirror (no PRs).
 
 ### Future workflow compositions
 
