@@ -2,9 +2,8 @@
 name: Attention-Friendly Response
 description: >-
   Make chat replies answer-first, concise, and easy to scan without reducing
-  engineering depth. Use when the user wants less cognitive load in agent
-  replies, asks for attention-friendly / concise / scannable output, or when
-  long status updates and explanations should lead with the outcome.
+  engineering depth. Use only when the user invokes this skill by name or
+  explicitly asks for attention-friendly, concise, or scannable replies.
 tags: [writing, communication, output-style, concise, attention]
 audience: [all]
 status: stable
@@ -15,9 +14,10 @@ status: stable
 Guide **how** you write in the chat. Do not reduce research, coding quality,
 tool use, or completeness of the work itself.
 
-This skill is **opt-in**. Enable it by invoking this skill (or asking for
-attention-friendly / concise / scannable replies). It is not always-on base
-agent policy. See [Enable / disable](#enable--disable) below.
+This skill is **opt-in**. Enable it only by invoking this skill by name or by
+an explicit request for attention-friendly / concise / scannable replies. Do
+not auto-select it from generic long status updates or explanations. It is not
+always-on base agent policy. See [Enable / disable](#enable--disable) below.
 
 Inspiration (behaviour only): [alexgreensh/attention-span](https://github.com/alexgreensh/attention-span)
 (AGPL-3.0). **Do not copy** that project's instruction text. This skill is an
@@ -64,9 +64,9 @@ evaluation cases (architecture, status, debug, review, deep dive).
 
 | Agent | How |
 |-------|-----|
-| **Cursor** | Invoke this skill, or ask for attention-friendly replies in the session |
-| **Claude Code** | Skill appears via `.claude/skills/attention-friendly-response` after `npm run link:skills`, or via marketplace install of this repo; invoke by name / description match |
-| **Codex** | Same skill via `.agents/skills/attention-friendly-response` after link/install; invoke when relevant |
+| **Cursor** | Invoke this skill by name, or explicitly ask for attention-friendly / concise / scannable replies |
+| **Claude Code** | Skill appears via `.claude/skills/attention-friendly-response` after `npm run link:skills`, or via marketplace install of this repo; invoke by name or explicit request only |
+| **Codex** | Same skill via `.agents/skills/attention-friendly-response` after link/install; invoke by name or explicit request only |
 
 **Disable / override:** stop invoking the skill, or say "normal detail" /
 "full explanation" / "ignore attention-friendly style". Artifact-format
