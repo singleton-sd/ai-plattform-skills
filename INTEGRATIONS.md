@@ -48,24 +48,26 @@ user specifies another destination.
 **Source of truth** for this skills repo:
 [`gitlab.com/singleton-sd/ai-plattform/skills`](https://gitlab.com/singleton-sd/ai-plattform/skills).
 
-Open merge requests against GitLab `master`. Prefer GitLab when GitHub diverges.
+Open merge requests against GitLab `master` only.
 
 ```bash
 npx skills add https://gitlab.com/singleton-sd/ai-plattform/skills --all
 ```
 
-### GitHub
+### GitHub (read-only mirror)
 
-[GitHub](https://github.com/singleton-sd/ai-plattform-skills) is a synchronized
-public mirror so skills.sh and Claude Code marketplace can install with
-`owner/repo` shorthand:
+[GitHub](https://github.com/singleton-sd/ai-plattform-skills) is an **archived,
+read-only** public mirror so skills.sh and Claude Code marketplace can install
+with `owner/repo` shorthand. Agents and humans must **not** open pull requests,
+push feature branches, or merge on GitHub.
 
 ```bash
 npx skills add singleton-sd/ai-plattform-skills --all
 claude plugin marketplace add singleton-sd/ai-plattform-skills
 ```
 
-Do not merge feature work on GitHub first. Merge on GitLab, then sync the mirror.
+Merge on GitLab, then sync `master` to the mirror (temporarily unarchive if a
+push is required, then re-archive).
 
 ## Opt-in communication style
 

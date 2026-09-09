@@ -106,7 +106,8 @@ Before reporting back:
 4. Check git status in the skills repository explicitly with `git -C`.
 
 Ship from a sibling worktree as a **GitLab merge request** against
-`gitlab.com/singleton-sd/ai-plattform/skills`. Do not merge on GitHub first.
+`gitlab.com/singleton-sd/ai-plattform/skills`. Never open a GitHub pull request
+for this repo — the GitHub remote is a read-only mirror.
 
 ## Completion Response
 
