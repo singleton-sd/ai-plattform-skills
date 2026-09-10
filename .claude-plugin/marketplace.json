@@ -35,6 +35,7 @@
         "./engineering/implement-feature",
         "./engineering/isolated-worktree",
         "./engineering/pipelines-npm",
+        "./engineering/publish-npm-library",
         "./engineering/refactoring",
         "./engineering/register-permissions",
         "./engineering/repo-init",
