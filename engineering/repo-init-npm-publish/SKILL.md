@@ -12,6 +12,8 @@ Scaffold a new **publishable** Singleton SD npm package — a CLI tool or librar
 
 This is the publishable-npm extension of [`engineering/repo-init`](../repo-init/SKILL.md). Use `repo-init` alone for repos that do not publish to the npm registry.
 
+For **public `@singleton-sd` libraries on npmjs.org via Trusted Publishing (OIDC / GitHub Actions)** — no long-lived tokens — use [`engineering/publish-npm-library`](../publish-npm-library/SKILL.md) instead of this skill.
+
 This skill composes:
 
 - [`engineering/repo-init`](../repo-init/SKILL.md) — husky, commitlint, release-it

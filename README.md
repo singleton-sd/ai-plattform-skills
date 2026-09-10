@@ -45,6 +45,7 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Implement an approved spec, verify locally, and submit a PR/MR |
 | [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md) | Implement and review in a sibling git worktree from the latest default branch |
 | [`engineering/pipelines-npm`](engineering/pipelines-npm/SKILL.md) | Include singletonsd/pipelines/npm GitLab CI and configure GitLab/npmjs publish |
+| [`engineering/publish-npm-library`](engineering/publish-npm-library/SKILL.md) | Publish public `@singleton-sd` libraries to npmjs via Trusted Publishing (OIDC) |
 | [`engineering/refactoring`](engineering/refactoring/SKILL.md) | Identify and apply targeted refactoring improvements |
 | [`engineering/register-permissions`](engineering/register-permissions/SKILL.md) | Register OpenFGA / ReBAC permission catalog entries |
 | [`engineering/repo-init`](engineering/repo-init/SKILL.md) | Initialize a repo with husky, commitlint, and release-it |

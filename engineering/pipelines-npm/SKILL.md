@@ -16,7 +16,9 @@ GitLab CI templates for Node/npm consumer repos.
 
 Canonical source: [singletonsd/pipelines/npm](https://gitlab.com/singletonsd/pipelines/npm). Agent contract in that repo: `AGENTS.md`. Consumer copy-paste: `examples/`.
 
-Compose with [`engineering/repo-init-npm-publish`](engineering/repo-init-npm-publish/SKILL.md) when scaffolding a new publishable package.
+Compose with [`engineering/repo-init-npm-publish`](../repo-init-npm-publish/SKILL.md) when scaffolding a new publishable package.
+
+For **public npmjs Trusted Publishing (OIDC)** from GitHub Actions (no `NPMJS_TOKEN`), use [`engineering/publish-npm-library`](../publish-npm-library/SKILL.md) instead.
 
 ## When to use
 
@@ -100,4 +102,5 @@ The trigger flag is `RELEASE_TRIGGER_PIPELINE`. Do not use `NODE_COMMON_RELEASE_
 ## Related
 
 - Common templates (Pages, AWS, YAML lint): `singletonsd/pipelines/common` (`AGENTS.md` there)
-- New package scaffold: [`engineering/repo-init-npm-publish`](engineering/repo-init-npm-publish/SKILL.md)
+- New package scaffold: [`engineering/repo-init-npm-publish`](../repo-init-npm-publish/SKILL.md)
+- Public npmjs OIDC: [`engineering/publish-npm-library`](../publish-npm-library/SKILL.md)
