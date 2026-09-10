@@ -4,9 +4,10 @@ description: >-
   Publish a public @singleton-sd TypeScript library to npmjs.org with Trusted
   Publishing (OIDC) from GitHub Actions — no long-lived NPM_TOKEN, no Azure Key
   Vault publish secret, no 2FA-bypass automation tokens. Use when setting up npm
-  releases for a client/library package, wiring release-it + release.yml, or
-  when an agent would otherwise invent a token-based publish path.
-tags: [engineering, npm, npmjs, trusted-publishing, oidc, github, release, library]
+  releases for a client/library package, wiring release-it + release.yml,
+  adapting a pnpm monorepo path-aware release, or when an agent would otherwise
+  invent a token-based publish path.
+tags: [engineering, npm, npmjs, trusted-publishing, oidc, github, release, library, monorepo]
 audience: [engineers, tech-leads]
 status: stable
 ---
@@ -16,11 +17,12 @@ status: stable
 Stand up and publish a **public** `@singleton-sd/<name>` library to **npmjs.org**
 using **Trusted Publishing (OIDC)** from GitHub Actions.
 
-Canonical reference (live):
-[`@singleton-sd/inkads-epaper-renderer`](https://www.npmjs.com/package/@singleton-sd/inkads-epaper-renderer)
-— repo [`singleton-sd/poc-inkads-epaper-renderer`](https://github.com/singleton-sd/poc-inkads-epaper-renderer)
-(issue [#22](https://github.com/singleton-sd/poc-inkads-epaper-renderer/issues/22),
-PR [#30](https://github.com/singleton-sd/poc-inkads-epaper-renderer/pull/30)).
+Canonical references (live):
+
+| Shape | Package / repo |
+| --- | --- |
+| Single package + release-it | [`@singleton-sd/inkads-epaper-renderer`](https://www.npmjs.com/package/@singleton-sd/inkads-epaper-renderer) — [`poc-inkads-epaper-renderer`](https://github.com/singleton-sd/poc-inkads-epaper-renderer) |
+| pnpm monorepo + path-aware release | [`@singleton-sd/post-kit-*`](https://www.npmjs.com/org/singleton-sd) — [`post-kit`](https://github.com/singleton-sd/post-kit) (`release.yml` + `scripts/release-changed.mjs` / `publish-npm.mjs`) |
 
 Docs: [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/),
 [release-it npm / OIDC](https://github.com/release-it/release-it/blob/main/docs/npm.md).
@@ -44,10 +46,11 @@ Confirm with the user:
 
 | Input | Example |
 |-------|---------|
-| **Package name** | `@singleton-sd/inkads-epaper-renderer` |
+| **Package name(s)** | `@singleton-sd/inkads-epaper-renderer` or several `@singleton-sd/post-kit-*` |
 | **GitHub org/repo** | `singleton-sd/poc-inkads-epaper-renderer` |
 | **Default branch** | `main` (confirm — do not assume) |
 | **Package manager** | `pnpm` (preferred for client libs) or `yarn`/`npm` |
+| **Repo shape** | Single package **or** pnpm workspace monorepo |
 | **License** | Proprietary → `SEE LICENSE IN LICENSE` + `LICENSE` file |
 
 Substitute the confirmed **default branch** everywhere the examples use
@@ -99,6 +102,10 @@ Rules:
 - Scoped name `@singleton-sd/<name>` — never invent a second name for npmjs
 - **Remove** `"private": true`
 - `publishConfig.access: "public"` (add `registry` only if you must pin; prefer default npmjs)
+- Optional `publishConfig.provenance: true` is **CI / OIDC–oriented**. It breaks
+  interactive laptop publish (`Automatic provenance generation not supported
+  for provider: null`). Keep it for GHA; strip only for local first-publish
+  bootstrap if needed, then restore.
 - `files` allowlist with **negated** `*.spec.*` / fixtures so tests never ship
 - `prepublishOnly` runs the build
 - Proprietary packages use `SEE LICENSE IN LICENSE` — **not** `UNLICENSED` (that blocks public installability)
@@ -109,17 +116,23 @@ Rules:
 
 ## Trusted Publishing setup (one-time per package)
 
-### 1. npmjs.com
+### 1. npmjs.com — form fields
 
-On the package (create the empty package name on npm under the org if needed):
+On **each** package (Settings → Trusted publisher → GitHub Actions → Add):
 
-1. **Settings → Trusted publishing → GitHub Actions**
-2. Organization: `singleton-sd`
-3. Repository: `<repo>` (name only)
-4. Workflow filename: `release.yml` (**filename only**, not `.github/workflows/…`)
-5. Allowed action: enable **`npm publish`** (not stage-only unless the team wants staged flow)
+| Field | Value |
+| --- | --- |
+| Provider | GitHub Actions |
+| Organization / user | `singleton-sd` |
+| Repository | `<repo>` **name only** (e.g. `post-kit`, not `singleton-sd/post-kit`) |
+| Workflow filename | `release.yml` **filename only** (not `.github/workflows/…`) |
+| Environment | **leave empty** unless the workflow actually uses a GitHub Environment |
+| Allowed action | enable **`npm publish`** (not stage-only unless the team wants staged flow) |
 
 npm does **not** validate the config on save — mismatches only fail at publish time.
+
+For monorepos, configure **every** public `@singleton-sd/<pkg>` the same way
+(same org/repo/workflow).
 
 ### 2. GitHub Actions workflow
 
@@ -128,8 +141,11 @@ Create `.github/workflows/release.yml`. Required:
 - `permissions.id-token: write` (OIDC)
 - `permissions.contents: write` (release commit / tag / GitHub Release)
 - Upgrade **npm CLI ≥ 11.5.1** in the job (Trusted Publishing minimum)
+- Prefer **pnpm 11.x** on the Release job (matches InkAds); pin explicitly
 - **Do not** set `NPM_TOKEN` / `NODE_AUTH_TOKEN` on the publish / `release:ci` step
 - Prefer **not** passing `registry-url` to `actions/setup-node` for the publish job
+- Set `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` / `GIT_COMMITTER_*` on the Release
+  step (InkAds) in addition to `git config user.*`
 
 #### Failure mode: stale / auth-bearing `.npmrc`
 
@@ -142,8 +158,15 @@ publish with a long-lived credential.
 
 Fix: omit `registry-url` for OIDC publish jobs; before `release:ci`, fail
 closed if **any** applicable npmrc (project, user, or global) contains registry
-auth. Install private deps in a separate step that does not leave auth config
+auth. **Log only the file path** — never `cat` the file into Actions logs
+(credentials may not be masked).
+
+Install private deps in a separate step that does not leave auth config
 in place for publish (or use a clean userconfig for the publish invocation).
+
+Non-auth project `.npmrc` keys (e.g. `inject-workspace-packages=true`) are fine
+for the OIDC check but can make `npm` noisy; prefer keeping publish jobs free of
+auth-bearing npmrc content.
 
 #### Reference workflow shape (adapt package manager + default branch)
 
@@ -196,8 +219,8 @@ jobs:
           npm --version
           for npmrc in "$PWD/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
             if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^//registry\.npmjs\.org|_authToken' "$npmrc"; then
+              # Do not print file contents — they may contain credentials.
               echo "Refusing to publish with an auth .npmrc: $npmrc" >&2
-              cat "$npmrc" >&2
               exit 1
             fi
           done
@@ -211,6 +234,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
           set -euo pipefail
           git remote set-url origin \
@@ -226,7 +253,7 @@ Copy from the live InkAds workflow when in doubt:
 
 ---
 
-## release-it integration
+## release-it integration (single-package repos)
 
 ```js
 // .release-it.js (ESM) — essentials
@@ -263,31 +290,92 @@ Notes:
 
 ---
 
+## pnpm monorepo (path-aware release)
+
+When the repo is a **pnpm workspace** with several public packages (e.g. post-kit):
+
+1. Keep a path-aware bump/orchestrator (not one global release-it for all packages).
+2. Publish with **`pnpm publish`** so `workspace:*` dependencies rewrite to concrete
+   versions (`npm publish` alone will not).
+3. Publish in **dependency order** (types/leaf libs before dependents).
+4. Publish **before** pushing release tags to the default branch (same recovery idea
+   as release-it).
+5. For partial-run recovery, probe the registry **version document** before each
+   publish:
+
+   - `GET https://registry.npmjs.org/<urlencoded-name>/<version>`
+   - **200** → skip (already published)
+   - **404** → publish
+   - **network / 5xx / other** → **throw** — do **not** treat as unpublished
+     (otherwise a retry republishes and npm rejects the immutable version)
+
+   Do **not** use package-root `npm view <name>` alone for this check (see
+   [Verify a published version](#verify-a-published-version)).
+
+6. Pass `--no-git-checks` and `--publish-branch <default-branch>` when the Release
+   job has a dirty tree or needs an explicit publish branch.
+
+Root `.release-it.json` may keep `npm.publish: false` when the orchestrator owns
+publish — do not confuse humans into using release-it for monorepo npm.
+
+---
+
 ## First-publish bootstrap
 
 Trusted Publishing often cannot take over until the package exists with at least
 one version (or the org has reserved the name — verify carefully).
 
-1. If `npm view @singleton-sd/<pkg>` **404s**, do **one** interactive first publish
-   from a maintainer machine:
+1. Work on a **clean checkout of the default branch** (avoids pnpm
+   `ERR_PNPM_GIT_NOT_CORRECT_BRANCH` / unclean-tree failures). Do not bootstrap
+   from a feature branch with temporary `package.json` hacks when you can avoid it.
+
+2. If the version document is missing, do **one** interactive first publish from
+   a maintainer machine (browser / 2FA / OTP as prompted):
+
+   **Single package:**
 
    ```bash
    pnpm build
    npm publish --access public
+   # or: pnpm publish --access public
    ```
 
-   Complete 2FA when prompted.
-
-2. Org UI may show the package name as **public** before any version exists —
-   that is **not** enough. Always verify with:
+   **Monorepo (rewrites workspace deps):**
 
    ```bash
-   npm view @singleton-sd/<pkg> version
+   pnpm --filter @singleton-sd/<pkg> build
+   pnpm --filter @singleton-sd/<pkg> publish --access public
    ```
 
-3. After the first OIDC CI publish succeeds, harden:
+   Keep `--filter` and the package name on the **same shell line** (line wraps
+   after `--filter` make `pnpm` see a bare `--filter` / `recursive` error).
+
+3. Org UI may show the package name as **public** before any version exists —
+   that is **not** enough. The CLI `+ name@version` line can also appear while
+   package-root metadata is still inconsistent — always verify (next section).
+
+4. After the first OIDC CI publish succeeds, harden:
 
    **Package → Publishing access → Require 2FA and disallow tokens**
+
+---
+
+## Verify a published version
+
+Prefer the **version document** or **`npm pack`**. Package-root `npm view
+@scope/name` (and even `npm view @scope/name@version` in some clients) can
+still **404** briefly after first publish while the website, tarball, and
+`GET /@scope%2fname/0.x.y` already succeed.
+
+```bash
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  "https://registry.npmjs.org/@singleton-sd%2f<name>/0.1.0"
+# expect 200
+
+npm pack @singleton-sd/<name>@0.1.0
+```
+
+Only then mark bootstrap done and move to the next package / OIDC CI.
 
 ---
 
@@ -300,6 +388,8 @@ one version (or the org has reserved the name — verify carefully).
 - Do not point `repository.url` at a different host/path than the publishing GitHub repo
 - Do not invent a GitLab `ENABLE_RELEASE_PUBLISH_*` + `NPMJS_TOKEN` path for this use case
   (that belongs to [`pipelines-npm`](../pipelines-npm/SKILL.md))
+- Do not `cat` auth-bearing `.npmrc` files into CI logs
+- Do not treat registry probe failures as “not published”
 
 Private **install** deps are separate: use a **read-only** token for `pnpm install` /
 `npm ci` if needed; publish still uses OIDC with no write token.
@@ -312,11 +402,14 @@ Private **install** deps are separate: use a **read-only** token for `pnpm insta
 Publish npm library (Trusted Publishing):
 - [ ] package.json name, license, files, prepublishOnly, repository.url
 - [ ] private: true removed; publishConfig.access public
-- [ ] release-it: npm.publish true + npm.skipChecks true
-- [ ] Default branch substituted in workflow + release-it requireBranch
-- [ ] .github/workflows/release.yml — id-token write, npm ≥ 11.5.1, no registry-url / auth-npmrc trap
-- [ ] npmjs Trusted Publisher: org, repo, workflow filename release.yml, allow npm publish
-- [ ] First version exists (npm view) or interactive bootstrap done
+- [ ] Single-package: release-it npm.publish true + npm.skipChecks true
+  OR monorepo: path-aware orchestrator + pnpm publish (workspace rewrite)
+- [ ] Default branch substituted in workflow + requireBranch / publish-branch
+- [ ] .github/workflows/release.yml — id-token write, npm ≥ 11.5.1, pnpm 11,
+      no registry-url; auth npmrc fail-closed (path only); GIT_AUTHOR_* set
+- [ ] npmjs Trusted Publisher per package: org, repo name only, release.yml,
+      empty Environment unless used, allow npm publish
+- [ ] First version verified via version URL or npm pack (not npm view alone)
 - [ ] CI release:ci succeeded once via OIDC
 - [ ] Publishing access hardened (2FA + disallow tokens)
 - [ ] Consumer install documented (pnpm add @singleton-sd/<name>@x.y.z)
@@ -326,6 +419,7 @@ Publish npm library (Trusted Publishing):
 
 ## Related
 
-- Reference implementation: `singleton-sd/poc-inkads-epaper-renderer`
+- Single-package reference: `singleton-sd/poc-inkads-epaper-renderer`
+- Monorepo reference: `singleton-sd/post-kit`
 - GitLab dual-registry publish: [`engineering/pipelines-npm`](../pipelines-npm/SKILL.md)
 - GitLab package scaffold: [`engineering/repo-init-npm-publish`](../repo-init-npm-publish/SKILL.md)
