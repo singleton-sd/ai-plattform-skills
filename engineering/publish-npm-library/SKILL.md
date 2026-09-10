@@ -46,9 +46,14 @@ Confirm with the user:
 |-------|---------|
 | **Package name** | `@singleton-sd/inkads-epaper-renderer` |
 | **GitHub org/repo** | `singleton-sd/poc-inkads-epaper-renderer` |
-| **Default branch** | `main` |
+| **Default branch** | `main` (confirm — do not assume) |
 | **Package manager** | `pnpm` (preferred for client libs) or `yarn`/`npm` |
 | **License** | Proprietary → `SEE LICENSE IN LICENSE` + `LICENSE` file |
+
+Substitute the confirmed **default branch** everywhere the examples use
+`<default-branch>` (workflow trigger, concurrency group, fetch/checkout, and
+release-it `requireBranch`). Do not hard-code `main` unless that is the
+confirmed default.
 
 ---
 
@@ -126,26 +131,34 @@ Create `.github/workflows/release.yml`. Required:
 - **Do not** set `NPM_TOKEN` / `NODE_AUTH_TOKEN` on the publish / `release:ci` step
 - Prefer **not** passing `registry-url` to `actions/setup-node` for the publish job
 
-#### Failure mode: stale `.npmrc` from setup-node
+#### Failure mode: stale / auth-bearing `.npmrc`
 
-If `actions/setup-node` is given `registry-url`, it writes `~/.npmrc` with
-`always-auth` and an empty `_authToken`. **npm ≥ 11.5** then rejects publish
-(Unknown user config / bogus `--//registry` argv). Fix: omit `registry-url`
-(and avoid writing auth `.npmrc`) for OIDC publish jobs; fail closed if an
-auth `.npmrc` appears.
+If `actions/setup-node` is given `registry-url`, it writes the user `.npmrc`
+with `always-auth` and an empty `_authToken`. **npm ≥ 11.5** then rejects
+publish (Unknown user config / bogus `--//registry` argv). A **project**
+`.npmrc` with `_authToken` / `always-auth` (for example a read token for
+private deps) is also read by `npm publish` and can short-circuit OIDC or
+publish with a long-lived credential.
 
-#### Reference workflow shape (adapt package manager)
+Fix: omit `registry-url` for OIDC publish jobs; before `release:ci`, fail
+closed if **any** applicable npmrc (project, user, or global) contains registry
+auth. Install private deps in a separate step that does not leave auth config
+in place for publish (or use a clean userconfig for the publish invocation).
+
+#### Reference workflow shape (adapt package manager + default branch)
+
+Replace every `<default-branch>` with the confirmed default from gather inputs.
 
 ```yaml
 name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [<default-branch>]
   workflow_dispatch:
 
 concurrency:
-  group: release-main
+  group: release-<default-branch>
   cancel-in-progress: false
 
 permissions:
@@ -181,11 +194,13 @@ jobs:
           # Pin npm@11: npm@latest may jump majors and break release-it argv.
           npm install -g npm@11
           npm --version
-          if [[ -f "$HOME/.npmrc" ]] && grep -qE 'always-auth|^//registry\.npmjs\.org' "$HOME/.npmrc"; then
-            echo "Refusing to publish with an auth .npmrc:" >&2
-            cat "$HOME/.npmrc" >&2
-            exit 1
-          fi
+          for npmrc in "$PWD/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
+            if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^//registry\.npmjs\.org|_authToken' "$npmrc"; then
+              echo "Refusing to publish with an auth .npmrc: $npmrc" >&2
+              cat "$npmrc" >&2
+              exit 1
+            fi
+          done
 
       - name: Configure git identity
         run: |
@@ -200,8 +215,8 @@ jobs:
           set -euo pipefail
           git remote set-url origin \
             "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch origin main --tags
-          git checkout -B main origin/main
+          git fetch origin <default-branch> --tags
+          git checkout -B <default-branch> origin/<default-branch>
           # Do not retry blindly: commit/tag may already exist if a later step failed.
           pnpm release:ci
 ```
@@ -215,10 +230,11 @@ Copy from the live InkAds workflow when in doubt:
 
 ```js
 // .release-it.js (ESM) — essentials
+// Set requireBranch to the confirmed default branch (not always "main").
 export default {
   git: {
     commitMessage: 'chore: Release v${version}\n\n[skip ci]',
-    requireBranch: 'main',
+    requireBranch: '<default-branch>',
     requireCleanWorkingDir: true,
     commit: true,
     push: true,
@@ -297,7 +313,8 @@ Publish npm library (Trusted Publishing):
 - [ ] package.json name, license, files, prepublishOnly, repository.url
 - [ ] private: true removed; publishConfig.access public
 - [ ] release-it: npm.publish true + npm.skipChecks true
-- [ ] .github/workflows/release.yml — id-token write, npm ≥ 11.5.1, no registry-url trap
+- [ ] Default branch substituted in workflow + release-it requireBranch
+- [ ] .github/workflows/release.yml — id-token write, npm ≥ 11.5.1, no registry-url / auth-npmrc trap
 - [ ] npmjs Trusted Publisher: org, repo, workflow filename release.yml, allow npm publish
 - [ ] First version exists (npm view) or interactive bootstrap done
 - [ ] CI release:ci succeeded once via OIDC
