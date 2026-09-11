@@ -40,6 +40,7 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 | [`engineering/fix-bugbot`](engineering/fix-bugbot/SKILL.md) | **Deprecated** — use address-change-request-review for bot findings |
 | [`engineering/form-ux`](engineering/form-ux/SKILL.md) | Implement and audit forms against submission, validation-timing, character-limit, pre-fill, password, and formatting UX rules |
 | [`engineering/forward-email`](engineering/forward-email/SKILL.md) | Provision and diagnose Forward Email domains, DNS, aliases, and tokens |
+| [`engineering/postkit-contact-consumer`](engineering/postkit-contact-consumer/SKILL.md) | Onboard a PostKit marketing/contact consumer across App Config, platform CORS, and mail domain |
 | [`engineering/frontend`](engineering/frontend/SKILL.md) | React/Next.js frontend guidelines |
 | [`engineering/git-conventions`](engineering/git-conventions/SKILL.md) | Apply commit format, branch naming, and ticket linking conventions |
 | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Implement an approved spec, verify locally, and submit a PR/MR |
