@@ -156,8 +156,10 @@ Create `.github/workflows/release.yml`. Required:
 - **Do not** set `NPM_TOKEN` / `NODE_AUTH_TOKEN` on the publish / `release:ci` step
 - Prefer **not** passing `registry-url` to `actions/setup-node` for the publish job
 - `actions/checkout` with `persist-credentials: false`
-- Run **build, test, and `prepublishOnly`** (or the package's prepublish script)
-  **before** minting the App token
+- Run **build, test, and `prepublishOnly`** (`pnpm run --if-present prepublishOnly`)
+  **before** minting the App token. `npm.publishArgs: ['--ignore-scripts']` so
+  `release:ci` does not re-run lifecycle scripts after minting. Do **not** add
+  release-it build hooks
 - Mint with `actions/create-github-app-token` (`vars.RELEASE_APP_ID` +
   `secrets.RELEASE_APP_PRIVATE_KEY`), repo-scoped,
   `permission-contents: write`. No PAT / `secrets.GITHUB_TOKEN` fallback
@@ -231,7 +233,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -239,14 +241,16 @@ jobs:
       - name: Select release revision
         run: |
           set -euo pipefail
+          # Unauthenticated fetch: public repos only. Private repos need a
+          # read token on this step, not the release App token.
           git fetch origin <default-branch> --tags
           git checkout -B <default-branch> origin/<default-branch>
 
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
           version: 11.22.0
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: pnpm
@@ -258,12 +262,11 @@ jobs:
       - name: Upgrade npm for OIDC publish
         run: |
           set -euo pipefail
-          # Pin npm@11: npm@latest may jump majors and break release-it argv.
-          npm install -g npm@11
+          # Node 22 ships npm 10; Trusted Publishing needs npm ≥ 11.5.1.
+          npm install -g npm@11.5.1
           npm --version
           for npmrc in "$PWD/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
             if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^//registry\.npmjs\.org|_authToken' "$npmrc"; then
-              # Do not print file contents — they may contain credentials.
               echo "Refusing to publish with an auth .npmrc: $npmrc" >&2
               exit 1
             fi
@@ -274,7 +277,7 @@ jobs:
           set -euo pipefail
           pnpm test
           pnpm build
-          pnpm prepublishOnly
+          pnpm run --if-present prepublishOnly
 
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token
@@ -299,6 +302,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HUSKY: '0'
         run: |
           set -euo pipefail
           git remote set-url origin \
@@ -307,8 +311,9 @@ jobs:
           pnpm release:ci
 ```
 
-Do not copy `poc-inkads-epaper-renderer`'s `secrets.GITHUB_TOKEN` push. That
-pattern cannot bypass a CodeRabbit-required ruleset.
+A default-branch push authenticated with `secrets.GITHUB_TOKEN` (the pattern
+older library release workflows used) cannot bypass a CodeRabbit-required
+ruleset. Do not copy that fallback.
 
 ---
 
@@ -326,11 +331,13 @@ export default {
     commit: true,
     push: true,
     tag: true,
-    pushArgs: ['--follow-tags', '--atomic'],
+    commitArgs: ['--no-verify'],
+    pushArgs: ['--follow-tags', '--atomic', '--no-verify'],
   },
   npm: {
     publish: true,
     skipChecks: true, // required for OIDC — npm whoami fails without a static token
+    publishArgs: ['--ignore-scripts'], // lifecycle scripts already ran before minting
   },
   github: { release: true },
   plugins: {
@@ -345,8 +352,25 @@ export default {
 Notes:
 
 - `npm.skipChecks: true` is **required** for OIDC (preflight `npm whoami` has no token)
+- `publishArgs: ['--ignore-scripts']` is **required** so `npm publish` does not
+  re-run `prepublishOnly` / `prepack` / `prepare` while the App token is in
+  `GITHUB_TOKEN` / `GH_TOKEN` and in the origin URL. Do **not** add release-it
+  `hooks` (`before:release`, `before:npm:publish`, …) that build or test —
+  those run after minting. Without `--ignore-scripts`, “prepublish before
+  minting” is false. Monorepos that publish from a custom script can instead
+  drop the App token from the publish env (`post-kit` #152).
+- Git hooks must stay off in that same step. `engineering/repo-init` installs
+  husky (`prepare: husky`; pre-commit, commit-msg, post-checkout via ts-node).
+  `pnpm install` in CI activates them, so release-it's git commit/push would
+  run those scripts while the App token is live. Set `HUSKY: '0'` on the
+  Release step, `git.commitArgs: ['--no-verify']`, and `--no-verify` on
+  `git.pushArgs`.
 - `pnpm release:ci` / `yarn release:ci` is **CI-only**; local dry-run is `pnpm release` (or `release-it -VV --dry-run`)
-- release-it publishes **before** git push — auth failure rolls back without pushing tags
+- release-it **19** npm-publishes **before** `git push`. If the atomic push
+  fails, that version is already immutable on npmjs. Do **not** re-run
+  `release:ci` (it would cut a new version). Probe the version document:
+  **200** → retry only git push / tag / GitHub Release; **404** → investigate
+  before publishing. Do not retry blindly: commit/tag may already exist.
 - Do **not** run `release:ci` on a laptop expecting OIDC
 
 ---
@@ -414,8 +438,9 @@ one version (or the org has reserved the name — verify carefully).
    after `--filter` make `pnpm` see a bare `--filter` / `recursive` error).
 
 3. Org UI may show the package name as **public** before any version exists —
-   that is **not** enough. The CLI `+ name@version` line can also appear while
-   package-root metadata is still inconsistent — always verify (next section).
+   that is **not** enough. The registry can take a **few minutes** to show
+   `0.0.0`. The CLI `+ name@version` line can also appear while package-root
+   metadata is still inconsistent — always verify (next section).
 
 4. After the first OIDC CI publish succeeds, harden:
 
@@ -473,9 +498,10 @@ Publish npm library (Trusted Publishing):
 - [ ] Default branch substituted in workflow + requireBranch / publish-branch
 - [ ] singleton-release App installed; RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY
 - [ ] Default-branch ruleset bypass includes the App (no GITHUB_TOKEN push)
-- [ ] .github/workflows/release.yml — contents:read + id-token:write, npm ≥ 11.5.1,
+- [ ] .github/workflows/release.yml — contents:read + id-token:write, npm 11.5.1,
       pnpm 11, no registry-url; auth npmrc fail-closed (path only); App token
-      after build/test/prepublish; atomic push; actions pinned to SHAs
+      after build/test/prepublishOnly --if-present; publishArgs --ignore-scripts
+      (no release-it build hooks); atomic push; actions pinned to exact tags
 - [ ] npmjs Trusted Publisher per package: org, repo name only, release.yml,
       empty Environment unless used, allow npm publish
 - [ ] First version verified via version URL or npm pack (not npm view alone)
@@ -488,8 +514,8 @@ Publish npm library (Trusted Publishing):
 
 ## Related
 
-- Single-package reference: `singleton-sd/poc-inkads-epaper-renderer` (OIDC npm;
-  **do not** copy its `GITHUB_TOKEN` default-branch push)
+- Single-package OIDC npm: `singleton-sd/poc-inkads-epaper-renderer`. Do **not**
+  copy a `secrets.GITHUB_TOKEN` default-branch push from any older workflow.
 - App-token git push + Pages snapshots:
   [`engineering/set-up-product-assets-repo`](../set-up-product-assets-repo/SKILL.md)
 - Monorepo reference: `singleton-sd/post-kit`

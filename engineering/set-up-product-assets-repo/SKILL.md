@@ -125,13 +125,13 @@ Shared with [`publish-npm-library`](../publish-npm-library/SKILL.md). Rules:
 |------|-------------|
 | Workflow `permissions` | `contents: read` and `id-token: write` only |
 | Checkout | `persist-credentials: false` |
-| Unauthenticated work | Install, **build, test, and prepublish** (or `prepublishOnly`) **before** minting a token |
+| Unauthenticated work | Install, **build, test, and `prepublishOnly`** **before** minting a token. `npm publish` must not re-run those scripts (see `--ignore-scripts`) |
 | Token | `actions/create-github-app-token` with `vars.RELEASE_APP_ID` + `secrets.RELEASE_APP_PRIVATE_KEY` |
 | Scope | This repo only (`repositories: ${{ github.event.repository.name }}`), `permission-contents: write` |
 | Identity | Pass `app-slug` (and app id when used in `run:`) through `env:`, never inline `${{ }}` in scripts |
 | Push | `git push --follow-tags --atomic` (release-it `pushArgs`) |
 | Fallback | **None**. Missing App id/key fails the job. Do not use `secrets.GITHUB_TOKEN` or a PAT |
-| Actions | Pin every `uses:` to a commit SHA |
+| Actions | Pin every `uses:` to a commit SHA; comment the exact tag (`v4.4.0`) |
 | Skip loop | Skip when the head commit starts with `chore(release):` |
 
 ```yaml
@@ -170,7 +170,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -178,14 +178,16 @@ jobs:
       - name: Select release revision
         run: |
           set -euo pipefail
+          # Unauthenticated fetch: public repos only. Private repos need a
+          # read token on this step, not the release App token.
           git fetch origin <default-branch> --tags
           git checkout -B <default-branch> origin/<default-branch>
 
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
           version: 11.22.0
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: pnpm
@@ -194,13 +196,26 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Upgrade npm for OIDC publish
+        run: |
+          set -euo pipefail
+          # Node 22 ships npm 10; Trusted Publishing needs npm ≥ 11.5.1.
+          npm install -g npm@11.5.1
+          npm --version
+          for npmrc in "$PWD/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
+            if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^//registry\.npmjs\.org|_authToken' "$npmrc"; then
+              echo "Refusing to publish with an auth .npmrc: $npmrc" >&2
+              exit 1
+            fi
+          done
+
       - name: Build, test, and prepublish
         run: |
           set -euo pipefail
           pnpm validate
           pnpm test
           pnpm build
-          pnpm prepublishOnly
+          pnpm run --if-present prepublishOnly
 
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token
@@ -225,6 +240,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HUSKY: '0'
         run: |
           set -euo pipefail
           git remote set-url origin \
@@ -232,11 +248,27 @@ jobs:
           pnpm release:ci
 ```
 
-Pin **all** `uses:` to commit SHAs (checkout, pnpm, setup-node, create-github-app-token).
-Do not leave `@v4` floating.
+Pin **all** `uses:` to commit SHAs and name the **exact tag** in the comment
+(`v4.4.0`, not `v4`). Do not leave `@v4` floating.
 
 release-it (single package). The commit message below is **only** for the
-workflow's release commit:
+workflow's release commit.
+
+`pnpm release:ci` runs while `GITHUB_TOKEN` / `GH_TOKEN` hold the App token
+and origin's URL contains it. **Do not** add release-it `hooks` that run
+validate / test / build / prepublish — those would execute after minting.
+`publishArgs: ['--ignore-scripts']` stops `npm publish` from re-running
+`prepublishOnly`, `prepack`, and `prepare`. That is what makes “build, test,
+and prepublish **before minting**” true. (Monorepos that drive publish in
+their own script can instead strip the App token from the publish env, as
+`post-kit` does.)
+
+The same Release step must not run **git hooks**. `engineering/repo-init`
+installs husky (`prepare: husky`; pre-commit, commit-msg, post-checkout via
+ts-node). `pnpm install` in CI activates them, so release-it's git commit
+and push would execute repo hook scripts while the App token is live and in
+the origin URL. Set `HUSKY: '0'` on the Release step, `git.commitArgs:
+['--no-verify']`, and add `--no-verify` to `git.pushArgs`.
 
 ```js
 export default {
@@ -248,12 +280,24 @@ export default {
     commit: true,
     push: true,
     tag: true,
-    pushArgs: ['--follow-tags', '--atomic'],
+    commitArgs: ['--no-verify'],
+    pushArgs: ['--follow-tags', '--atomic', '--no-verify'],
   },
-  npm: { publish: true, skipChecks: true },
+  npm: {
+    publish: true,
+    skipChecks: true,
+    publishArgs: ['--ignore-scripts'],
+  },
   github: { release: true, releaseName: 'v${version}' },
 };
 ```
+
+release-it 19 **npm-publishes before `git push`**. If the atomic push fails,
+the version is already immutable on npmjs. Do **not** run `release:ci` again
+(that would mint a new version). Probe
+`GET https://registry.npmjs.org/@singleton-sd%2f<product>-assets/<version>`:
+**200** → retry only the git push / tag / GitHub Release for that same
+version; **404** → investigate before publishing.
 
 OIDC npm publish, `npm.skipChecks`, and auth-`.npmrc` fail-closed checks:
 [`publish-npm-library`](../publish-npm-library/SKILL.md). Do not set `NPM_TOKEN`.
@@ -267,7 +311,8 @@ Complete **before** merging the first real release workflow to
 
 1. **Install the singleton-release GitHub App** on this repo (org App). Set
    repository variable `RELEASE_APP_ID` and secret `RELEASE_APP_PRIVATE_KEY`.
-   Never commit or print the private key.
+   Never commit or print the private key. GitHub may ask for **sudo**
+   confirmation (Pato's authenticator).
 2. **One-time npm placeholder `0.0.0`.** npm cannot attach a trusted publisher
    until the package exists. A **maintainer** runs this **locally once**
    (browser / 2FA / OTP). Agents do not publish from a laptop token:
@@ -278,24 +323,30 @@ Complete **before** merging the first real release workflow to
    npm publish --access public
    ```
 
-   Then add the trusted publisher and let CI publish later versions.
+   The registry can take a **few minutes** to show `0.0.0` (website and
+   `npm view` may 404 while `GET /@scope%2fname/0.0.0` already returns 200).
+   Wait and verify the version document before adding the trusted publisher.
+   Then let CI publish later versions.
 3. **npm trusted publisher** — GitHub Actions, org `singleton-sd`, repository
    **name only**, workflow filename `release.yml`, Environment empty unless the
    workflow uses one, allow `npm publish`.
-4. **DNS CNAME** — ask the **infrastructure owner** for:
+4. **DNS CNAME** — **Singleton Server** (the infrastructure bot) creates the
+   Route 53 record. Ask it for:
 
    | Name | Type | Value | TTL |
    |------|------|-------|-----|
    | `assets.<product>.poc.singletonsd.com` | `CNAME` | `singleton-sd.github.io` | `300` |
 
-   Do not create the record yourself. Do not proceed as if DNS is done until the
-   owner **explicitly confirms**. See
+   Do not create the record yourself. Do not proceed as if DNS is done until
+   **Pato confirms the CNAME in his own words**. See
    [`engineering/route53-subdomains`](../route53-subdomains/SKILL.md) for how
    credentialed DNS changes work — this step still needs that confirmation.
-5. **CodeRabbit required ruleset** on `<default-branch>`, copied from a
-   reference product assets repo (`poc-inkads-assets` or `leasemate-assets`).
+5. **CodeRabbit required ruleset** on `<default-branch>`, copied from
+   [`singleton-sd/poc-inkads-assets` ruleset `27247890`](https://github.com/singleton-sd/poc-inkads-assets/settings/rules/27247890).
    Put the **singleton-release** GitHub App on the bypass list. Do not add
-   `.coderabbit.yaml`.
+   `.coderabbit.yaml`. GitHub may prompt for **sudo** confirmation when
+   installing the App or saving the ruleset — that needs **Pato's
+   authenticator**.
 
 ---
 
@@ -322,12 +373,13 @@ Set up a product assets repo:
 - [ ] validate / test / build clean; dist/manifest.json
 - [ ] pages.yml → gh-pages root; clean-exclude releases + CNAME
 - [ ] snapshot.yml on release:published; overwrite guard; tar + sha256 + manifest
-- [ ] release.yml: App token, contents:read + id-token:write, build/test/
-      prepublish before minting, atomic push, no GITHUB_TOKEN/PAT fallback
-- [ ] App installed; RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY
-- [ ] Maintainer published npm 0.0.0; trusted publisher = release.yml
-- [ ] DNS CNAME requested; owner confirmed
-- [ ] CodeRabbit required ruleset; App on bypass list
+- [ ] release.yml: App token after build/test/prepublishOnly (--if-present);
+      npm@11.5.1 + auth-npmrc refuse; publishArgs --ignore-scripts (no
+      release-it build hooks); atomic push; no GITHUB_TOKEN/PAT fallback
+- [ ] App installed; RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY (Pato sudo if asked)
+- [ ] Maintainer published npm 0.0.0; waited for registry; trusted publisher
+- [ ] DNS CNAME via Singleton Server; Pato confirmed in his own words
+- [ ] CodeRabbit ruleset copied from poc-inkads-assets 27247890; App on bypass
 - [ ] After first release: Pages from gh-pages, custom domain, HTTPS
 ```
 
