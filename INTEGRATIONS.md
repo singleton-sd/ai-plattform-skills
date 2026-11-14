@@ -69,6 +69,11 @@ claude plugin marketplace add singleton-sd/ai-plattform-skills
 Merge on GitLab, then sync `master` to the mirror (temporarily unarchive if a
 push is required, then re-archive).
 
+Product **brand-assets** repositories are GitHub-hosted (not this skills repo).
+Follow [`engineering/set-up-product-assets-repo`](engineering/set-up-product-assets-repo/SKILL.md)
+for Pages snapshots and the singleton-release App token. npm OIDC details:
+[`engineering/publish-npm-library`](engineering/publish-npm-library/SKILL.md).
+
 ## Opt-in communication style
 
 [`writing/attention-friendly-response`](writing/attention-friendly-response/SKILL.md)
