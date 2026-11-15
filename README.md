@@ -46,13 +46,14 @@ Ollama and similar local models have no skill folder — load a `SKILL.md` as a 
 | [`engineering/implement-feature`](engineering/implement-feature/SKILL.md) | Implement an approved spec, verify locally, and submit a PR/MR |
 | [`engineering/isolated-worktree`](engineering/isolated-worktree/SKILL.md) | Implement and review in a sibling git worktree from the latest default branch |
 | [`engineering/pipelines-npm`](engineering/pipelines-npm/SKILL.md) | Include singletonsd/pipelines/npm GitLab CI and configure GitLab/npmjs publish |
-| [`engineering/publish-npm-library`](engineering/publish-npm-library/SKILL.md) | Publish public `@singleton-sd` libraries to npmjs via Trusted Publishing (OIDC) |
+| [`engineering/publish-npm-library`](engineering/publish-npm-library/SKILL.md) | Publish public `@singleton-sd` libraries to npmjs via OIDC and the singleton-release App |
 | [`engineering/refactoring`](engineering/refactoring/SKILL.md) | Identify and apply targeted refactoring improvements |
 | [`engineering/register-permissions`](engineering/register-permissions/SKILL.md) | Register OpenFGA / ReBAC permission catalog entries |
 | [`engineering/repo-init`](engineering/repo-init/SKILL.md) | Initialize a repo with husky, commitlint, and release-it |
 | [`engineering/repo-init-npm-publish`](engineering/repo-init-npm-publish/SKILL.md) | Scaffold publishable npm packages and CLI tools with GitLab, CI, and release setup |
 | [`engineering/route53-subdomains`](engineering/route53-subdomains/SKILL.md) | Create/update/delete Route 53 DNS records for project subdomains using Key Vault agent credentials |
 | [`engineering/schema-driven-forms`](engineering/schema-driven-forms/SKILL.md) | Build forms with Zod → JSON Schema → JSON Forms and token renderers |
+| [`engineering/set-up-product-assets-repo`](engineering/set-up-product-assets-repo/SKILL.md) | Create a product assets repo: gh-pages catalog, immutable snapshots, App-token release |
 | [`engineering/storybook`](engineering/storybook/SKILL.md) | Storybook stories and Chromatic snapshot workflow |
 | [`engineering/submit-change-request`](engineering/submit-change-request/SKILL.md) | Push branch, open PR/MR on GitHub or GitLab, wait for CI, update ClickUp or repo issue |
 | [`engineering/test-generation`](engineering/test-generation/SKILL.md) | Generate comprehensive, meaningful tests |

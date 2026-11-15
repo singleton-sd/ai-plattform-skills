@@ -32,6 +32,7 @@ Docs: [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/),
 | Goal | Skill |
 |------|--------|
 | Public library on **npmjs** via **OIDC** (GitHub Actions) | **This skill** |
+| Product brand-assets repo (Pages + snapshots + App-token release) | [`engineering/set-up-product-assets-repo`](../set-up-product-assets-repo/SKILL.md) |
 | CLI/tool on **GitLab Package Registry** (± token npmjs) | [`engineering/repo-init-npm-publish`](../repo-init-npm-publish/SKILL.md) + [`engineering/pipelines-npm`](../pipelines-npm/SKILL.md) |
 | Husky / commitlint / release-it only (no publish) | [`engineering/repo-init`](../repo-init/SKILL.md) |
 
@@ -116,6 +117,16 @@ Rules:
 
 ## Trusted Publishing setup (one-time per package)
 
+npm cannot attach a trusted publisher until the package exists on the registry.
+A **maintainer** publishes a placeholder (typically **`0.0.0`**) locally once
+(see [First-publish bootstrap](#first-publish-bootstrap)), then adds the
+publisher below. Agents do not use a laptop npm token for that placeholder.
+
+Install the org **singleton-release** GitHub App on the repo before merge. Set
+`vars.RELEASE_APP_ID` and `secrets.RELEASE_APP_PRIVATE_KEY`. Put that App on
+the default-branch ruleset bypass list (CodeRabbit required). There is **no**
+`GITHUB_TOKEN` or PAT fallback for the release push.
+
 ### 1. npmjs.com — form fields
 
 On **each** package (Settings → Trusted publisher → GitHub Actions → Add):
@@ -138,14 +149,28 @@ For monorepos, configure **every** public `@singleton-sd/<pkg>` the same way
 
 Create `.github/workflows/release.yml`. Required:
 
-- `permissions.id-token: write` (OIDC)
-- `permissions.contents: write` (release commit / tag / GitHub Release)
+- `permissions.id-token: write` (OIDC) and `permissions.contents: read` only
+  (the App token, not `GITHUB_TOKEN`, writes the release commit/tag)
 - Upgrade **npm CLI ≥ 11.5.1** in the job (Trusted Publishing minimum)
 - Prefer **pnpm 11.x** on the Release job (matches InkAds); pin explicitly
 - **Do not** set `NPM_TOKEN` / `NODE_AUTH_TOKEN` on the publish / `release:ci` step
 - Prefer **not** passing `registry-url` to `actions/setup-node` for the publish job
-- Set `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` / `GIT_COMMITTER_*` on the Release
-  step (InkAds) in addition to `git config user.*`
+- `actions/checkout` with `persist-credentials: false`
+- Run **build, test, and `prepublishOnly`** (`pnpm run --if-present prepublishOnly`)
+  **before** minting the App token. `npm.publishArgs: ['--ignore-scripts']` so
+  `release:ci` does not re-run lifecycle scripts after minting. Do **not** add
+  release-it build hooks
+- Mint with `actions/create-github-app-token` (`vars.RELEASE_APP_ID` +
+  `secrets.RELEASE_APP_PRIVATE_KEY`), repo-scoped,
+  `permission-contents: write`. No PAT / `secrets.GITHUB_TOKEN` fallback
+- Pass `app-slug` / app id into `run:` scripts through `env:`, not inline
+  `${{ }}` expressions
+- Atomic push: `git push --follow-tags --atomic`
+- Pin every `uses:` to a commit SHA
+- Skip the job when the head commit starts with `chore(release):`
+
+Same git-push design:
+[`set-up-product-assets-repo`](../set-up-product-assets-repo/SKILL.md).
 
 #### Failure mode: stale / auth-bearing `.npmrc`
 
@@ -185,24 +210,47 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
 
 jobs:
   release:
-    if: "${{ github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore: Release') }}"
+    if: "${{ github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release):') }}"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Require singleton-release GitHub App credentials
+        env:
+          RELEASE_APP_ID: ${{ vars.RELEASE_APP_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${RELEASE_APP_ID}" ]]; then
+            echo "::error::vars.RELEASE_APP_ID is not set." >&2
+            exit 1
+          fi
+          if [[ -z "${RELEASE_APP_PRIVATE_KEY}" ]]; then
+            echo "::error::secrets.RELEASE_APP_PRIVATE_KEY is not set. Do not use GITHUB_TOKEN or a PAT." >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - name: Select release revision
+        run: |
+          set -euo pipefail
+          # Unauthenticated fetch: public repos only. Private repos need a
+          # read token on this step, not the release App token.
+          git fetch origin <default-branch> --tags
+          git checkout -B <default-branch> origin/<default-branch>
+
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
           version: 11.22.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: pnpm
@@ -214,42 +262,58 @@ jobs:
       - name: Upgrade npm for OIDC publish
         run: |
           set -euo pipefail
-          # Pin npm@11: npm@latest may jump majors and break release-it argv.
-          npm install -g npm@11
+          # Node 22 ships npm 10; Trusted Publishing needs npm ≥ 11.5.1.
+          npm install -g npm@11.5.1
           npm --version
           for npmrc in "$PWD/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
             if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^//registry\.npmjs\.org|_authToken' "$npmrc"; then
-              # Do not print file contents — they may contain credentials.
               echo "Refusing to publish with an auth .npmrc: $npmrc" >&2
               exit 1
             fi
           done
 
-      - name: Configure git identity
+      - name: Build, test, and prepublish
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set -euo pipefail
+          pnpm test
+          pnpm build
+          pnpm run --if-present prepublishOnly
+
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+
+      - name: Configure git identity as the App bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${user_id}+${APP_SLUG}[bot]@users.noreply.github.com"
 
       - name: Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GIT_AUTHOR_NAME: github-actions[bot]
-          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
-          GIT_COMMITTER_NAME: github-actions[bot]
-          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HUSKY: '0'
         run: |
           set -euo pipefail
           git remote set-url origin \
-            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch origin <default-branch> --tags
-          git checkout -B <default-branch> origin/<default-branch>
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           # Do not retry blindly: commit/tag may already exist if a later step failed.
           pnpm release:ci
 ```
 
-Copy from the live InkAds workflow when in doubt:
-`.github/workflows/release.yml` in `poc-inkads-epaper-renderer`.
+A default-branch push authenticated with `secrets.GITHUB_TOKEN` (the pattern
+older library release workflows used) cannot bypass a CodeRabbit-required
+ruleset. Do not copy that fallback.
 
 ---
 
@@ -260,16 +324,20 @@ Copy from the live InkAds workflow when in doubt:
 // Set requireBranch to the confirmed default branch (not always "main").
 export default {
   git: {
-    commitMessage: 'chore: Release v${version}\n\n[skip ci]',
+    // Workflow release commit only — never copy [skip ci] into feature commits.
+    commitMessage: 'chore(release): v${version} [skip ci]',
     requireBranch: '<default-branch>',
     requireCleanWorkingDir: true,
     commit: true,
     push: true,
     tag: true,
+    commitArgs: ['--no-verify'],
+    pushArgs: ['--follow-tags', '--atomic', '--no-verify'],
   },
   npm: {
     publish: true,
     skipChecks: true, // required for OIDC — npm whoami fails without a static token
+    publishArgs: ['--ignore-scripts'], // lifecycle scripts already ran before minting
   },
   github: { release: true },
   plugins: {
@@ -284,8 +352,25 @@ export default {
 Notes:
 
 - `npm.skipChecks: true` is **required** for OIDC (preflight `npm whoami` has no token)
+- `publishArgs: ['--ignore-scripts']` is **required** so `npm publish` does not
+  re-run `prepublishOnly` / `prepack` / `prepare` while the App token is in
+  `GITHUB_TOKEN` / `GH_TOKEN` and in the origin URL. Do **not** add release-it
+  `hooks` (`before:release`, `before:npm:publish`, …) that build or test —
+  those run after minting. Without `--ignore-scripts`, “prepublish before
+  minting” is false. Monorepos that publish from a custom script can instead
+  drop the App token from the publish env (`post-kit` #152).
+- Git hooks must stay off in that same step. `engineering/repo-init` installs
+  husky (`prepare: husky`; pre-commit, commit-msg, post-checkout via ts-node).
+  `pnpm install` in CI activates them, so release-it's git commit/push would
+  run those scripts while the App token is live. Set `HUSKY: '0'` on the
+  Release step, `git.commitArgs: ['--no-verify']`, and `--no-verify` on
+  `git.pushArgs`.
 - `pnpm release:ci` / `yarn release:ci` is **CI-only**; local dry-run is `pnpm release` (or `release-it -VV --dry-run`)
-- release-it publishes **before** git push — auth failure rolls back without pushing tags
+- release-it **19** npm-publishes **before** `git push`. If the atomic push
+  fails, that version is already immutable on npmjs. Do **not** re-run
+  `release:ci` (it would cut a new version). Probe the version document:
+  **200** → retry only git push / tag / GitHub Release; **404** → investigate
+  before publishing. Do not retry blindly: commit/tag may already exist.
 - Do **not** run `release:ci` on a laptop expecting OIDC
 
 ---
@@ -330,7 +415,9 @@ one version (or the org has reserved the name — verify carefully).
    from a feature branch with temporary `package.json` hacks when you can avoid it.
 
 2. If the version document is missing, do **one** interactive first publish from
-   a maintainer machine (browser / 2FA / OTP as prompted):
+   a maintainer machine (browser / 2FA / OTP as prompted). Prefer **`0.0.0`**
+   as the placeholder so a trusted publisher can be attached before CI mints
+   `0.1.0`:
 
    **Single package:**
 
@@ -351,8 +438,9 @@ one version (or the org has reserved the name — verify carefully).
    after `--filter` make `pnpm` see a bare `--filter` / `recursive` error).
 
 3. Org UI may show the package name as **public** before any version exists —
-   that is **not** enough. The CLI `+ name@version` line can also appear while
-   package-root metadata is still inconsistent — always verify (next section).
+   that is **not** enough. The registry can take a **few minutes** to show
+   `0.0.0`. The CLI `+ name@version` line can also appear while package-root
+   metadata is still inconsistent — always verify (next section).
 
 4. After the first OIDC CI publish succeeds, harden:
 
@@ -390,6 +478,9 @@ Only then mark bootstrap done and move to the next package / OIDC CI.
   (that belongs to [`pipelines-npm`](../pipelines-npm/SKILL.md))
 - Do not `cat` auth-bearing `.npmrc` files into CI logs
 - Do not treat registry probe failures as “not published”
+- Do not push the release commit with `secrets.GITHUB_TOKEN` or a PAT
+- Do not mint the App token before build / test / prepublish succeed
+- Do not put `[skip ci]` in feature commits (release-it commit message only)
 
 Private **install** deps are separate: use a **read-only** token for `pnpm install` /
 `npm ci` if needed; publish still uses OIDC with no write token.
@@ -405,8 +496,12 @@ Publish npm library (Trusted Publishing):
 - [ ] Single-package: release-it npm.publish true + npm.skipChecks true
   OR monorepo: path-aware orchestrator + pnpm publish (workspace rewrite)
 - [ ] Default branch substituted in workflow + requireBranch / publish-branch
-- [ ] .github/workflows/release.yml — id-token write, npm ≥ 11.5.1, pnpm 11,
-      no registry-url; auth npmrc fail-closed (path only); GIT_AUTHOR_* set
+- [ ] singleton-release App installed; RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY
+- [ ] Default-branch ruleset bypass includes the App (no GITHUB_TOKEN push)
+- [ ] .github/workflows/release.yml — contents:read + id-token:write, npm 11.5.1,
+      pnpm 11, no registry-url; auth npmrc fail-closed (path only); App token
+      after build/test/prepublishOnly --if-present; publishArgs --ignore-scripts
+      (no release-it build hooks); atomic push; actions pinned to exact tags
 - [ ] npmjs Trusted Publisher per package: org, repo name only, release.yml,
       empty Environment unless used, allow npm publish
 - [ ] First version verified via version URL or npm pack (not npm view alone)
@@ -419,7 +514,10 @@ Publish npm library (Trusted Publishing):
 
 ## Related
 
-- Single-package reference: `singleton-sd/poc-inkads-epaper-renderer`
+- Single-package OIDC npm: `singleton-sd/poc-inkads-epaper-renderer`. Do **not**
+  copy a `secrets.GITHUB_TOKEN` default-branch push from any older workflow.
+- App-token git push + Pages snapshots:
+  [`engineering/set-up-product-assets-repo`](../set-up-product-assets-repo/SKILL.md)
 - Monorepo reference: `singleton-sd/post-kit`
 - GitLab dual-registry publish: [`engineering/pipelines-npm`](../pipelines-npm/SKILL.md)
 - GitLab package scaffold: [`engineering/repo-init-npm-publish`](../repo-init-npm-publish/SKILL.md)
