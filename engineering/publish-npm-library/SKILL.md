@@ -93,7 +93,7 @@ confirmed default.
     "build": "tsc -p tsconfig.json",
     "prepublishOnly": "pnpm build",
     "release": "release-it -VV --dry-run --ci",
-    "release:ci": "release-it --ci"
+    "release:bump": "release-it --ci"
   }
 }
 ```
@@ -109,6 +109,9 @@ Rules:
   bootstrap if needed, then restore.
 - `files` allowlist with **negated** `*.spec.*` / fixtures so tests never ship
 - `prepublishOnly` runs the build
+- `release:bump` only bumps `version` and writes `CHANGELOG.md` (release-it
+  with commit, tag, push, publish, and GitHub Release off); the workflow's
+  `publish` job does the rest without running any repo code
 - Proprietary packages use `SEE LICENSE IN LICENSE` — **not** `UNLICENSED` (that blocks public installability)
 - `repository.url` must **exactly** match the GitHub repo (OIDC / provenance requirement)
 - UTF-8 **without BOM** on `package.json`
@@ -147,35 +150,45 @@ For monorepos, configure **every** public `@singleton-sd/<pkg>` the same way
 
 ### 2. GitHub Actions workflow
 
-Create `.github/workflows/release.yml`. Required:
+Create `.github/workflows/release.yml` with two jobs. **Repo code never runs
+in the job that mints the App token.** Required:
 
-- `permissions.contents: read`; `id-token: write` (OIDC) **only** on the
-  publishing `release` job (the App token, not `GITHUB_TOKEN`, writes the
-  release commit/tag). Install / build / test run in a separate `build` job
-  without `id-token` or **any `secrets.*`** and hand `dist/` over as an
-  artifact (`dist/` must be gitignored). The App credential check is the first
-  step of `release`; `release` has no `cache:`
-- Upgrade **npm CLI ≥ 11.5.1** in the job (Trusted Publishing minimum)
-- Prefer **pnpm 11.x** on the Release job (matches InkAds); pin explicitly
-- **Do not** set `NPM_TOKEN` / `NODE_AUTH_TOKEN` on the publish / `release:ci` step
+- `prepare` (untrusted): checkout, install, test, build, `prepublishOnly`, then
+  `pnpm release:bump` (version + `CHANGELOG.md`) and `npm pack
+  --ignore-scripts`. It has `contents: read` only: **no `secrets.*`**, no App
+  token, no `id-token`. It uploads the tarball, `package.json`,
+  `CHANGELOG.md`, and the release notes as one artifact and outputs the
+  version and the source SHA
+- `publish` (no repo code): no install, no `node` / `pnpm` / `npx`, no repo
+  scripts, hooks, or config loaders, no `cache:`. The checkout is data for git
+  only. Steps, in order: App credential check (first, before checkout) →
+  checkout → download artifact → setup-node + npm ≥ 11.5.1 + auth-`.npmrc`
+  refusal → `git commit --no-verify` and `git tag -a` of the prepared files
+  (hooks off) → **mint the App token (last setup step)** → `git -c
+  http.https://github.com/.extraheader=… push --atomic --no-verify origin
+  HEAD:<default-branch> refs/tags/<v>` → `npm publish <tarball>
+  --ignore-scripts` (OIDC, run outside the checkout) → `gh release create
+  --verify-tag`
+- `permissions.contents: read` at the top; `id-token: write` **only** on
+  `publish`. The App token, never `GITHUB_TOKEN`, pushes the release commit/tag
+- Upgrade **npm CLI ≥ 11.5.1** in `publish` (Trusted Publishing minimum)
+- Prefer **pnpm 11.x** in `prepare` (matches InkAds); pin explicitly
+- **Do not** set `NPM_TOKEN` / `NODE_AUTH_TOKEN` on the publish step
 - Prefer **not** passing `registry-url` to `actions/setup-node` for the publish job
 - `actions/checkout` with `ref: <default-branch>` and `persist-credentials: false`
   (its own fetch is authenticated, so private repos work; no extra `git fetch`)
-- Run **build, test, and `prepublishOnly`** (`pnpm run --if-present prepublishOnly`)
-  **before** minting the App token. `npm.publishArgs: ['--ignore-scripts']` so
-  `release:ci` does not re-run lifecycle scripts after minting. Do **not** add
-  release-it build hooks
 - Mint with `actions/create-github-app-token` (`vars.RELEASE_APP_ID` +
   `secrets.RELEASE_APP_PRIVATE_KEY`), repo-scoped,
-  `permission-contents: write`. No PAT / `secrets.GITHUB_TOKEN` fallback
-- Pass `app-slug` / app id into `run:` scripts through `env:`, not inline
-  `${{ }}` expressions
-- Atomic push: `git push --follow-tags --atomic --no-verify`, token in
-  `http.extraheader` (never the origin URL), removed under `if: always()`
-- Recovery inputs `recover_version` + `recover_sha` (dispatch only) for a
-  version npm has but git does not; `next` must be strict semver
+  `permission-contents: write`. No PAT / `secrets.GITHUB_TOKEN` fallback. The
+  token goes only to the push and GitHub Release steps through `env:`; the npm
+  publish step never sees it
+- The release commit uses the static `singleton-release[bot]` identity (user
+  id `356768209`), so nothing calls the API before the token exists
+- Recovery inputs `recover_version` + `recover_sha` (dispatch only) finish a
+  release whose tag is on GitHub but whose npm publish or GitHub Release did
+  not; the version must be strict semver
 - Pin every `uses:` to a commit SHA
-- Skip the job when the head commit starts with `chore(release):`
+- Skip the run when the head commit starts with `chore(release):`
 
 Same git-push design:
 [`set-up-product-assets-repo`](../set-up-product-assets-repo/SKILL.md).
@@ -189,7 +202,7 @@ publish (Unknown user config / bogus `--//registry` argv). A **project**
 private deps) is also read by `npm publish` and can short-circuit OIDC or
 publish with a long-lived credential.
 
-Fix: omit `registry-url` for OIDC publish jobs; before `release:ci`, fail
+Fix: omit `registry-url` for OIDC publish jobs; before `npm publish`, fail
 closed if **any** applicable npmrc (project, user, or global) contains registry
 auth. **Log only the file path** — never `cat` the file into Actions logs
 (credentials may not be masked).
@@ -214,11 +227,11 @@ on:
   workflow_dispatch:
     inputs:
       recover_version:
-        description: Version already on npm whose release commit, tag, or GitHub Release is missing
+        description: Version whose tag is on GitHub but whose npm publish or GitHub Release did not finish
         required: false
         default: ''
       recover_sha:
-        description: Source commit the failed run built (its build job logs it)
+        description: Source commit the failed run prepared (the parent of the release commit)
         required: false
         default: ''
 
@@ -230,12 +243,16 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  prepare:
     # Untrusted: dependency and repo scripts run here. No secrets, App token, or id-token.
     if: "${{ github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release):') }}"
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.rev.outputs.sha }}
+      recover: ${{ steps.rev.outputs.recover }}
+      version: ${{ steps.pack.outputs.version }}
+      package: ${{ steps.pack.outputs.package }}
+      tarball: ${{ steps.pack.outputs.tarball }}
     steps:
       # checkout's own fetch uses the read-only job token (private repos work);
       # persist-credentials: false removes it. No separate unauthenticated fetch.
@@ -245,11 +262,33 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - id: rev
+      - name: Select release revision
+        id: rev
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RECOVER_VERSION: ${{ inputs.recover_version }}
+          RECOVER_SHA: ${{ inputs.recover_sha }}
         run: |
+          set -euo pipefail
+          fail() { echo "::error::$*" >&2; exit 1; }
           sha="$(git rev-parse HEAD)"
-          echo "Building ${sha} (recover_sha if this run's push fails)"
+          recover=false
+          if [[ -n "${RECOVER_VERSION}${RECOVER_SHA}" ]]; then
+            [[ "${EVENT_NAME}" == workflow_dispatch && -n "${RECOVER_VERSION}" && -n "${RECOVER_SHA}" ]] \
+              || fail "Recovery needs a workflow_dispatch with both recover_version and recover_sha."
+            tag_commit="$(git rev-parse -q --verify "refs/tags/${RECOVER_VERSION}^{commit}")" \
+              || fail "Tag ${RECOVER_VERSION} does not exist; nothing to recover."
+            [[ "$(git rev-parse "${tag_commit}^")" == "${RECOVER_SHA}" ]] \
+              || fail "Tag ${RECOVER_VERSION} is not the release commit on top of ${RECOVER_SHA}."
+            [[ "$(git log -1 --format=%s "${tag_commit}")" == "chore(release): v${RECOVER_VERSION} [skip ci]" ]] \
+              || fail "Tag ${RECOVER_VERSION} does not point at a release commit."
+            git checkout --quiet --detach "${tag_commit}"
+            sha="${RECOVER_SHA}"
+            recover=true
+          fi
+          echo "Preparing ${sha} (recover_sha if this release does not finish)"
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "recover=${recover}" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
@@ -271,21 +310,48 @@ jobs:
           pnpm build
           pnpm run --if-present prepublishOnly
 
+      - name: Bump version and changelog, then pack
+        id: pack
+        env:
+          RECOVER: ${{ steps.rev.outputs.recover }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*" >&2; exit 1; }
+          # release-it with commit, tag, push, npm publish, and GitHub Release off
+          # (see .release-it.js). A recovery run packs the tagged release commit as is.
+          [[ "${RECOVER}" == true ]] || pnpm release:bump
+          version="$(node -p 'require("./package.json").version')"
+          semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$'
+          [[ "${version}" =~ ${semver} ]] || fail "package.json has no valid version: '${version}'."
+          out="${RUNNER_TEMP}/release-files"
+          mkdir -p "${out}"
+          # Lifecycle scripts already ran above; the tarball is final.
+          tarball="$(npm pack --ignore-scripts --pack-destination "${out}" | tail -n1)"
+          cp package.json CHANGELOG.md "${out}/"
+          awk '/^##? / { if (found) exit; found=1 } found { print }' CHANGELOG.md > "${out}/release-notes.md"
+          {
+            echo "version=${version}"
+            echo "package=$(node -p 'require("./package.json").name')"
+            echo "tarball=${tarball}"
+          } >> "$GITHUB_OUTPUT"
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-dist
-          path: dist/
+          name: release-files
+          path: ${{ runner.temp }}/release-files/
           if-no-files-found: error
           retention-days: 1
 
-  release:
-    needs: build
+  publish:
+    # Runs no repo code: no install, no node/pnpm, no repo scripts or hooks.
+    # The checkout is data for git; the App token is minted after every setup step.
+    needs: prepare
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write # only this job can request the npm OIDC token
     steps:
-      # Runs before any repo code is checked out.
+      # Runs before anything is checked out.
       - name: Require singleton-release GitHub App credentials
         env:
           RELEASE_APP_ID: ${{ vars.RELEASE_APP_ID }}
@@ -307,32 +373,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify release revision
-        env:
-          BUILT_SHA: ${{ needs.build.outputs.sha }}
-        run: |
-          set -euo pipefail
-          if [[ "$(git rev-parse HEAD)" != "${BUILT_SHA}" ]]; then
-            echo "::error::<default-branch> moved after the build; the newer run releases it." >&2
-            exit 1
-          fi
-
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          version: 11.22.0
+          name: release-files
+          path: ${{ runner.temp }}/release-files
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-          # No cache here: the untrusted build job writes the pnpm cache.
-
-      - name: Install release tooling (no lifecycle scripts)
-        run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: release-dist
-          path: dist/
+          # No cache and no registry-url: nothing is installed from the repo.
 
       - name: Upgrade npm for OIDC publish
         run: |
@@ -347,7 +396,47 @@ jobs:
             fi
           done
 
-      # Minted last, right before the only step that pushes and publishes.
+      - name: Commit and tag the prepared release
+        id: plan
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PACKAGE: ${{ needs.prepare.outputs.package }}
+          PREPARED_SHA: ${{ needs.prepare.outputs.sha }}
+          RECOVER: ${{ needs.prepare.outputs.recover }}
+          DEFAULT_BRANCH: <default-branch>
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*" >&2; exit 1; }
+          files="${RUNNER_TEMP}/release-files"
+          code="$(curl -sS --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' \
+            "https://registry.npmjs.org/${PACKAGE/\//%2f}/${VERSION}")" || fail "npm registry probe failed."
+          [[ "${code}" == 200 || "${code}" == 404 ]] || fail "npm registry probe returned ${code}."
+          echo "npm=${code}" >> "$GITHUB_OUTPUT"
+          if [[ "${RECOVER}" == true ]]; then
+            # prepare checked that the tag is the release commit on top of recover_sha.
+            [[ "$(git rev-parse "refs/tags/${VERSION}^{commit}^")" == "${PREPARED_SHA}" ]] \
+              || fail "Tag ${VERSION} is not the release commit on top of ${PREPARED_SHA}."
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$(git rev-parse HEAD)" == "${PREPARED_SHA}" ]] \
+            || fail "${DEFAULT_BRANCH} moved after prepare; the newer run releases it."
+          if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
+            fail "Tag ${VERSION} already exists. If its run failed, dispatch with recover_version=${VERSION} and recover_sha=$(git rev-parse "refs/tags/${VERSION}^{commit}^")."
+          fi
+          [[ "${code}" == 404 ]] || fail "${VERSION} is on npm without its tag; a maintainer investigates before any release."
+          # Static singleton-release[bot] identity: no API lookup before the token exists.
+          git config --local user.name "singleton-release[bot]"
+          git config --local user.email "356768209+singleton-release[bot]@users.noreply.github.com"
+          git config --local core.hooksPath /dev/null
+          cp "${files}/package.json" "${files}/CHANGELOG.md" .
+          git add package.json CHANGELOG.md
+          git commit --quiet --no-verify -m "chore(release): v${VERSION} [skip ci]"
+          git tag -a "${VERSION}" -m "v${VERSION}"
+          echo "push=true" >> "$GITHUB_OUTPUT"
+
+      # Minted last: every later step is inline bash with git, curl, gh, and npm
+      # publish of the prepared tarball. Do not add steps that run repo code.
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token
         with:
@@ -357,70 +446,73 @@ jobs:
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
 
-      - name: Configure git identity as the App bot
+      - name: Push release commit and tag
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-        run: |
-          set -euo pipefail
-          user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
-          git config user.name "${APP_SLUG}[bot]"
-          git config user.email "${user_id}+${APP_SLUG}[bot]@users.noreply.github.com"
-
-      - name: Release
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }} # release-it reads it via tokenRef
-          HUSKY: '0'
-          EVENT_NAME: ${{ github.event_name }}
-          RECOVER_VERSION: ${{ inputs.recover_version }}
-          RECOVER_SHA: ${{ inputs.recover_sha }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PREPARED_SHA: ${{ needs.prepare.outputs.sha }}
+          PUSH: ${{ steps.plan.outputs.push }}
           DEFAULT_BRANCH: <default-branch>
         run: |
           set -euo pipefail
           fail() { echo "::error::$*" >&2; exit 1; }
-          # Token in an extraheader, never in the origin URL; no repo git hooks.
+          # Token only in a per-command extraheader: never in a URL or on disk.
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
           echo "::add-mask::${auth}"
-          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${auth}"
-          git config --local core.hooksPath /dev/null
-          head="$(git rev-parse HEAD)"
-          tip="$(git ls-remote origin "refs/heads/${DEFAULT_BRANCH}" | cut -f1)"
-          [[ "${tip}" == "${head}" ]] || fail "${DEFAULT_BRANCH} moved to ${tip}; the newer run releases it."
-          last_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          header="http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}"
+          if [[ "${PUSH}" != true ]]; then
+            remote="$(git -c "${header}" ls-remote origin "refs/tags/${VERSION}^{}" | cut -f1)"
+            [[ "${remote}" == "$(git rev-parse "refs/tags/${VERSION}^{commit}")" ]] \
+              || fail "origin's tag ${VERSION} is not the release commit checked out here."
+            echo "Recovery: tag ${VERSION} is already on origin; nothing to push."
+            exit 0
+          fi
+          last_tag="$(git describe --tags --abbrev=0 "${PREPARED_SHA}" 2>/dev/null || true)"
           if [[ -n "${last_tag}" ]] && ! gh release view "${last_tag}" >/dev/null; then
-            fail "Tag ${last_tag} has no GitHub Release. Run: gh release create ${last_tag} --verify-tag"
+            fail "Tag ${last_tag} has no GitHub Release. Dispatch with recover_version=${last_tag} and recover_sha=$(git rev-parse "${last_tag}^{commit}^"), or run: gh release create ${last_tag} --verify-tag"
           fi
-          next="$(pnpm exec release-it --ci --release-version | tail -n1)"
-          semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$'
-          [[ "${next}" =~ ${semver} ]] || fail "release-it printed no valid next version: '${next}'."
-          recover=false
-          if [[ -n "${RECOVER_VERSION}${RECOVER_SHA}" ]]; then
-            [[ "${EVENT_NAME}" == workflow_dispatch && "${RECOVER_VERSION}" == "${next}" && "${RECOVER_SHA}" == "${head}" ]] \
-              || fail "Recovery needs a workflow_dispatch with recover_version=${next} and recover_sha set to the failed run's built sha, which must still be the tip."
-            recover=true
-          fi
-          name="$(node -p 'require("./package.json").name')"
-          code="$(curl -sS --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' \
-            "https://registry.npmjs.org/${name/\//%2f}/${next}")" || fail "npm registry probe failed."
-          case "${code}:${recover}" in
-            404:false) pnpm release:ci ;;
-            # npm has this version but its push failed: finish git + GitHub Release only.
-            200:true) pnpm release:ci --npm.publish=false ;;
-            200:false) fail "${next} is on npm without its tag. Dispatch with recover_version=${next} and recover_sha=<failed run's built sha>." ;;
-            404:true) fail "${next} is not on npm; nothing to recover." ;;
-            *) fail "npm registry probe returned ${code}." ;;
-          esac
+          tip="$(git -c "${header}" ls-remote origin "refs/heads/${DEFAULT_BRANCH}" | cut -f1)"
+          [[ "${tip}" == "${PREPARED_SHA}" ]] || fail "${DEFAULT_BRANCH} moved to ${tip}; the newer run releases it."
+          git -c "${header}" push --atomic --no-verify origin "HEAD:${DEFAULT_BRANCH}" "refs/tags/${VERSION}"
 
-      - name: Remove push credentials
-        if: always()
-        run: git config --local --unset-all http.https://github.com/.extraheader || true
+      - name: Publish the prepared tarball to npm (OIDC)
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TARBALL: ${{ needs.prepare.outputs.tarball }}
+          NPM_STATUS: ${{ steps.plan.outputs.npm }}
+        run: |
+          set -euo pipefail
+          if [[ "${NPM_STATUS}" == 200 ]]; then
+            echo "Recovery: ${VERSION} is already on npm."
+            exit 0
+          fi
+          # Outside the checkout, so no repo package.json or .npmrc is read.
+          cd "${RUNNER_TEMP}/release-files"
+          npm publish "./${TARBALL}" --ignore-scripts --access public
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "${VERSION}" >/dev/null 2>&1; then
+            echo "GitHub Release ${VERSION} already exists."
+            exit 0
+          fi
+          gh release create "${VERSION}" --verify-tag --title "v${VERSION}" \
+            --notes-file "${RUNNER_TEMP}/release-files/release-notes.md"
 ```
 
-The `build` job references **no `secrets.*`** and no App token: it runs
-dependency install scripts, tests, and the build. The credential check is the
-first step of `release`, before checkout. `release` has no `cache:` (the
-untrusted build job writes the pnpm cache). `dist/` must be in `.gitignore`,
-or release-it's `requireCleanWorkingDir` fails after the artifact download.
+`prepare` references **no `secrets.*`** and no App token: it runs dependency
+install scripts, tests, the build, and the version bump. `publish` runs no
+repo code, so the App token is never live while anything from the repo
+executes. Its credential check is the first step, before checkout, and it has
+no `cache:` (the untrusted `prepare` job writes the pnpm cache). `dist/` must
+be in `.gitignore` so the bump's `requireCleanWorkingDir` check passes after
+the build.
 
 A default-branch push authenticated with `secrets.GITHUB_TOKEN` (the pattern
 older library release workflows used) cannot bypass a CodeRabbit-required
@@ -430,27 +522,25 @@ ruleset. Do not copy that fallback.
 
 ## release-it integration (single-package repos)
 
+release-it only computes the version and writes `CHANGELOG.md`, in `prepare`.
+It never commits, tags, pushes, publishes, or creates the GitHub Release: the
+no-code `publish` job does that with plain `git`, `npm`, and `gh`.
+
 ```js
-// .release-it.js (ESM) — essentials
-// Set requireBranch to the confirmed default branch (not always "main").
+// .release-it.js (ESM) — bump-only. Set requireBranch to the confirmed default branch.
 export default {
   git: {
-    // Workflow release commit only — never copy [skip ci] into feature commits.
-    commitMessage: 'chore(release): v${version} [skip ci]',
     requireBranch: '<default-branch>',
     requireCleanWorkingDir: true,
-    commit: true,
-    push: true,
-    tag: true,
-    commitArgs: ['--no-verify'],
-    pushArgs: ['--follow-tags', '--atomic', '--no-verify'],
+    commit: false, // publish job: git commit --no-verify
+    tag: false, // publish job: git tag -a <version>
+    push: false, // publish job: atomic push with the App token
   },
   npm: {
-    publish: true,
-    skipChecks: true, // required for OIDC — npm whoami fails without a static token
-    publishArgs: ['--ignore-scripts'], // lifecycle scripts already ran before minting
+    publish: false, // publish job: npm publish <tarball> --ignore-scripts (OIDC)
+    skipChecks: true, // no npm whoami / registry checks in the untrusted job
   },
-  github: { release: true, tokenRef: 'GH_TOKEN' }, // App token, not GITHUB_TOKEN
+  github: { release: false }, // publish job: gh release create --verify-tag
   plugins: {
     '@release-it/conventional-changelog': {
       infile: 'CHANGELOG.md',
@@ -462,48 +552,39 @@ export default {
 
 Notes:
 
-- `npm.skipChecks: true` is **required** for OIDC (preflight `npm whoami` has no token)
-- `publishArgs: ['--ignore-scripts']` is **required** so `npm publish` does not
-  re-run `prepublishOnly` / `prepack` / `prepare` while the App token is in
-  `GH_TOKEN` and the git extraheader. Do **not** add release-it
-  `hooks` (`before:release`, `before:npm:publish`, …) that build or test —
-  those run after minting. Without `--ignore-scripts`, “prepublish before
-  minting” is false. Monorepos that publish from a custom script can instead
-  drop the App token from the publish env (`post-kit` #152).
-- Git hooks must stay off in that same step. `engineering/repo-init` installs
-  husky (`prepare: husky`; pre-commit, commit-msg, post-checkout via ts-node).
-  `pnpm install` in CI activates them, so release-it's git commit/push would
-  run those scripts while the App token is live. Set `HUSKY: '0'` on the
-  Release step, `git.commitArgs: ['--no-verify']`, and `--no-verify` on
-  `git.pushArgs`. `--no-verify` does not skip `prepare-commit-msg` or
-  `post-commit`, so the step also sets `core.hooksPath=/dev/null`.
-- Keep `.release-it.js` declarative: no `hooks`, functions, or imports beyond
-  the changelog plugin. It loads while the App token is live.
-- `pnpm release:ci` / `yarn release:ci` is **CI-only**; local dry-run is `pnpm release` (or `release-it -VV --dry-run`)
-- release-it 19 **npm-publishes before `git push`**. If the push fails, the
-  version is already immutable on npmjs and a plain re-run would fail on
-  `npm publish`. The Release step checks, in order, and fails closed on anything
-  unexpected:
+- Tags are the bare version (`1.2.3`), annotated `v1.2.3`; the release commit
+  is `chore(release): v<version> [skip ci]` (the only place `[skip ci]` goes).
+- `release:bump` runs before any token exists, so `.release-it.js` may use the
+  usual options; it still must not commit, tag, push, or publish.
+- `npm publish <tarball> --ignore-scripts` publishes exactly what `prepare`
+  packed: `prepublishOnly` / `prepack` / `prepare` never run in `publish`.
+- No install happens in `publish`, so husky and other repo git hooks are never
+  installed there. The step that commits and tags still sets
+  `core.hooksPath=/dev/null` and passes `--no-verify` (which alone does not
+  skip `prepare-commit-msg` or `post-commit`).
+- Local dry-run: `pnpm release` (or `release-it -VV --dry-run`). There is no
+  local publish path; CI publishes via OIDC.
+- The `publish` job pushes **before** it publishes, so a failure leaves at
+  most a tag without its npm version or GitHub Release. Checks, in order, all
+  failing closed:
 
-  1. `<default-branch>` still points at the built commit (re-checked right before
-     release-it, so the window for a racing merge is seconds).
-  2. The latest tag has a GitHub Release. If a run pushed the tag but not the
-     Release, it stops instead of cutting another version: create the Release
-     from the tag (`gh release create <tag> --verify-tag`).
-  3. `next` from `release-it --release-version` is strict semver (empty output or
-     a stray line such as `latest` would otherwise probe the package root).
-  4. Recovery inputs are accepted only on `workflow_dispatch`, with
-     `recover_version` equal to `next` **and** `recover_sha` equal to the failed
-     run's built SHA (its build job logs `Building <sha>`), which must still be
-     the checked-out tip. The tag can therefore only land on the source npm
-     shipped; if `<default-branch>` has moved since the failed run, recovery
-     fails and a maintainer tags that commit by hand.
-  5. The registry probe (`--connect-timeout 10 --max-time 30`) of the
-     `<next>` version document: **404** → normal release; **200** on a
-     recovery dispatch → `release:ci --npm.publish=false` (bump commit, tag,
-     push, GitHub Release); **200** otherwise → fail (a push can never take the
-     recovery path); 404 on a recovery dispatch, or any other status → fail.
-- Do **not** run `release:ci` on a laptop expecting OIDC
+  1. `prepare` validates the version from `package.json` as strict semver.
+  2. The npm registry probe (`--connect-timeout 10 --max-time 30`) of the
+     version document returns **200** or **404**; anything else fails.
+  3. Normal run: `<default-branch>` still points at the prepared commit, the
+     tag does not exist yet, and npm says **404** (a version on npm without
+     its tag stops the run for a maintainer to investigate).
+  4. After minting: the latest earlier tag has a GitHub Release. If a run
+     pushed a tag but did not finish, the next run stops instead of cutting
+     another version and names the recovery dispatch.
+  5. `<default-branch>` is re-read on origin right before the atomic push.
+- **Recovery** (`workflow_dispatch` only, both inputs required):
+  `recover_version` is the stuck tag and `recover_sha` the commit the failed
+  run prepared (its log line `Preparing <sha>`; also the tag's parent).
+  `prepare` checks that the tag is the `chore(release)` commit on top of
+  `recover_sha`, packs that commit without bumping, and `publish` checks that
+  origin's tag matches. It then skips the push, publishes only if npm says
+  404, and creates the GitHub Release only if it is missing.
 
 ---
 
@@ -512,11 +593,14 @@ Notes:
 When the repo is a **pnpm workspace** with several public packages (e.g. post-kit):
 
 1. Keep a path-aware bump/orchestrator (not one global release-it for all packages).
-2. Publish with **`pnpm publish`** so `workspace:*` dependencies rewrite to concrete
-   versions (`npm publish` alone will not).
+2. Pack with **`pnpm pack`** (or `pnpm publish` in a job without the App token)
+   so `workspace:*` dependencies rewrite to concrete versions (`npm publish` of
+   a source directory will not).
 3. Publish in **dependency order** (types/leaf libs before dependents).
-4. Publish **before** pushing release tags to the default branch (same recovery idea
-   as release-it).
+4. Pack every package in `prepare` (`pnpm pack` rewrites `workspace:*`) and
+   publish the tarballs with `npm publish <tgz> --ignore-scripts`. Never run the
+   orchestrator script in the job that holds the App token; push the release
+   commit and tags from a no-code job as above.
 5. For partial-run recovery, probe the registry **version document** before each
    publish:
 
@@ -612,9 +696,11 @@ Only then mark bootstrap done and move to the next package / OIDC CI.
 - Do not treat registry probe failures as “not published”
 - Do not push the release commit with `secrets.GITHUB_TOKEN` or a PAT
 - Do not mint the App token before build / test / prepublish succeed
+- Do not install, run `node` / `pnpm` / `npx`, or run release-it or any repo
+  script in the job that mints the App token
 - Do not put the App token in the origin URL (use `http.extraheader`)
 - Do not grant `id-token: write` to the job that installs, builds, or tests
-- Do not put `[skip ci]` in feature commits (release-it commit message only)
+- Do not put `[skip ci]` in feature commits (release commit message only)
 
 Private **install** deps are separate: use a **read-only** token for `pnpm install` /
 `npm ci` if needed; publish still uses OIDC with no write token.
@@ -627,22 +713,23 @@ Private **install** deps are separate: use a **read-only** token for `pnpm insta
 Publish npm library (Trusted Publishing):
 - [ ] package.json name, license, files, prepublishOnly, repository.url
 - [ ] private: true removed; publishConfig.access public
-- [ ] Single-package: release-it npm.publish true + npm.skipChecks true
-  OR monorepo: path-aware orchestrator + pnpm publish (workspace rewrite)
+- [ ] Single-package: release-it bump only (commit/tag/push/publish/release off)
+  OR monorepo: path-aware orchestrator + pnpm pack (workspace rewrite)
 - [ ] Default branch substituted in workflow + requireBranch / publish-branch
 - [ ] singleton-release App installed; RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY
 - [ ] Default-branch ruleset bypass includes the App (no GITHUB_TOKEN push)
-- [ ] .github/workflows/release.yml — build job (contents:read) → artifact →
-      release job (credential check first, id-token:write, no cache), npm
-      11.5.1, pnpm 11, no registry-url; no secrets in build; auth npmrc
-      fail-closed (path only); App token minted last; publishArgs
-      --ignore-scripts (no release-it hooks); tokenRef GH_TOKEN; extraheader
-      + --no-verify atomic push; semver-checked next; recover_version +
-      recover_sha on dispatch only; dist/ gitignored; actions pinned
+- [ ] .github/workflows/release.yml — prepare job (contents:read, no
+      secrets): test, build, bump, npm pack --ignore-scripts → artifact →
+      publish job (credential check first, id-token:write, no install, no
+      node/pnpm, no cache): commit --no-verify + tag -a, App token minted
+      last, extraheader atomic push, npm publish <tarball> --ignore-scripts,
+      gh release create --verify-tag; npm 11.5.1, no registry-url; auth
+      npmrc fail-closed (path only); recover_version + recover_sha on
+      dispatch only; dist/ gitignored; actions pinned
 - [ ] npmjs Trusted Publisher per package: org, repo name only, release.yml,
       empty Environment unless used, allow npm publish
 - [ ] First version verified via version URL or npm pack (not npm view alone)
-- [ ] CI release:ci succeeded once via OIDC
+- [ ] CI publish job succeeded once via OIDC
 - [ ] Publishing access hardened (2FA + disallow tokens)
 - [ ] Consumer install documented (pnpm add @singleton-sd/<name>@x.y.z)
 ```
