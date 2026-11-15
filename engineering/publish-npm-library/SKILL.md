@@ -152,7 +152,9 @@ Create `.github/workflows/release.yml`. Required:
 - `permissions.contents: read`; `id-token: write` (OIDC) **only** on the
   publishing `release` job (the App token, not `GITHUB_TOKEN`, writes the
   release commit/tag). Install / build / test run in a separate `build` job
-  without `id-token` and hand `dist/` over as an artifact
+  without `id-token` or **any `secrets.*`** and hand `dist/` over as an
+  artifact (`dist/` must be gitignored). The App credential check is the first
+  step of `release`; `release` has no `cache:`
 - Upgrade **npm CLI ≥ 11.5.1** in the job (Trusted Publishing minimum)
 - Prefer **pnpm 11.x** on the Release job (matches InkAds); pin explicitly
 - **Do not** set `NPM_TOKEN` / `NODE_AUTH_TOKEN` on the publish / `release:ci` step
@@ -170,7 +172,8 @@ Create `.github/workflows/release.yml`. Required:
   `${{ }}` expressions
 - Atomic push: `git push --follow-tags --atomic --no-verify`, token in
   `http.extraheader` (never the origin URL), removed under `if: always()`
-- Recovery input `recover_version` for a version npm has but git does not
+- Recovery inputs `recover_version` + `recover_sha` (dispatch only) for a
+  version npm has but git does not; `next` must be strict semver
 - Pin every `uses:` to a commit SHA
 - Skip the job when the head commit starts with `chore(release):`
 
@@ -214,6 +217,10 @@ on:
         description: Version already on npm whose release commit, tag, or GitHub Release is missing
         required: false
         default: ''
+      recover_sha:
+        description: Source commit the failed run built (its build job logs it)
+        required: false
+        default: ''
 
 concurrency:
   group: release-<default-branch>
@@ -224,27 +231,12 @@ permissions:
 
 jobs:
   build:
-    # No id-token and no App token: dependency and repo scripts run only here.
+    # Untrusted: dependency and repo scripts run here. No secrets, App token, or id-token.
     if: "${{ github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release):') }}"
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.rev.outputs.sha }}
     steps:
-      - name: Require singleton-release GitHub App credentials
-        env:
-          RELEASE_APP_ID: ${{ vars.RELEASE_APP_ID }}
-          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${RELEASE_APP_ID}" ]]; then
-            echo "::error::vars.RELEASE_APP_ID is not set." >&2
-            exit 1
-          fi
-          if [[ -z "${RELEASE_APP_PRIVATE_KEY}" ]]; then
-            echo "::error::secrets.RELEASE_APP_PRIVATE_KEY is not set. Do not use GITHUB_TOKEN or a PAT." >&2
-            exit 1
-          fi
-
       # checkout's own fetch uses the read-only job token (private repos work);
       # persist-credentials: false removes it. No separate unauthenticated fetch.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -254,7 +246,10 @@ jobs:
           persist-credentials: false
 
       - id: rev
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        run: |
+          sha="$(git rev-parse HEAD)"
+          echo "Building ${sha} (recover_sha if this run's push fails)"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
@@ -290,6 +285,22 @@ jobs:
       contents: read
       id-token: write # only this job can request the npm OIDC token
     steps:
+      # Runs before any repo code is checked out.
+      - name: Require singleton-release GitHub App credentials
+        env:
+          RELEASE_APP_ID: ${{ vars.RELEASE_APP_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${RELEASE_APP_ID}" ]]; then
+            echo "::error::vars.RELEASE_APP_ID is not set." >&2
+            exit 1
+          fi
+          if [[ -z "${RELEASE_APP_PRIVATE_KEY}" ]]; then
+            echo "::error::secrets.RELEASE_APP_PRIVATE_KEY is not set. No job-token or PAT fallback." >&2
+            exit 1
+          fi
+
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: <default-branch>
@@ -313,7 +324,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-          cache: pnpm
+          # No cache here: the untrusted build job writes the pnpm cache.
 
       - name: Install release tooling (no lifecycle scripts)
         run: pnpm install --frozen-lockfile --ignore-scripts
@@ -358,38 +369,58 @@ jobs:
 
       - name: Release
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # release-it reads it via tokenRef
           HUSKY: '0'
+          EVENT_NAME: ${{ github.event_name }}
           RECOVER_VERSION: ${{ inputs.recover_version }}
+          RECOVER_SHA: ${{ inputs.recover_sha }}
+          DEFAULT_BRANCH: <default-branch>
         run: |
           set -euo pipefail
+          fail() { echo "::error::$*" >&2; exit 1; }
           # Token in an extraheader, never in the origin URL; no repo git hooks.
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
           echo "::add-mask::${auth}"
           git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${auth}"
           git config --local core.hooksPath /dev/null
+          head="$(git rev-parse HEAD)"
+          tip="$(git ls-remote origin "refs/heads/${DEFAULT_BRANCH}" | cut -f1)"
+          [[ "${tip}" == "${head}" ]] || fail "${DEFAULT_BRANCH} moved to ${tip}; the newer run releases it."
+          last_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          if [[ -n "${last_tag}" ]] && ! gh release view "${last_tag}" >/dev/null; then
+            fail "Tag ${last_tag} has no GitHub Release. Run: gh release create ${last_tag} --verify-tag"
+          fi
           next="$(pnpm exec release-it --ci --release-version | tail -n1)"
+          semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$'
+          [[ "${next}" =~ ${semver} ]] || fail "release-it printed no valid next version: '${next}'."
+          recover=false
+          if [[ -n "${RECOVER_VERSION}${RECOVER_SHA}" ]]; then
+            [[ "${EVENT_NAME}" == workflow_dispatch && "${RECOVER_VERSION}" == "${next}" && "${RECOVER_SHA}" == "${head}" ]] \
+              || fail "Recovery needs a workflow_dispatch with recover_version=${next} and recover_sha set to the failed run's built sha, which must still be the tip."
+            recover=true
+          fi
           name="$(node -p 'require("./package.json").name')"
-          code="$(curl -sS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${name/\//%2f}/${next}")"
-          case "${code}" in
-            404) pnpm release:ci ;;
-            200)
-              # npm has this version but its push failed: finish git + GitHub Release only.
-              if [[ "${RECOVER_VERSION}" != "${next}" ]]; then
-                echo "::error::${next} is on npm without its tag. Re-run with recover_version=${next}." >&2
-                exit 1
-              fi
-              pnpm release:ci --npm.publish=false ;;
-            *)
-              echo "::error::npm registry probe returned ${code}." >&2
-              exit 1 ;;
+          code="$(curl -sS --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' \
+            "https://registry.npmjs.org/${name/\//%2f}/${next}")" || fail "npm registry probe failed."
+          case "${code}:${recover}" in
+            404:false) pnpm release:ci ;;
+            # npm has this version but its push failed: finish git + GitHub Release only.
+            200:true) pnpm release:ci --npm.publish=false ;;
+            200:false) fail "${next} is on npm without its tag. Dispatch with recover_version=${next} and recover_sha=<failed run's built sha>." ;;
+            404:true) fail "${next} is not on npm; nothing to recover." ;;
+            *) fail "npm registry probe returned ${code}." ;;
           esac
 
       - name: Remove push credentials
         if: always()
         run: git config --local --unset-all http.https://github.com/.extraheader || true
 ```
+
+The `build` job references **no `secrets.*`** and no App token: it runs
+dependency install scripts, tests, and the build. The credential check is the
+first step of `release`, before checkout. `release` has no `cache:` (the
+untrusted build job writes the pnpm cache). `dist/` must be in `.gitignore`,
+or release-it's `requireCleanWorkingDir` fails after the artifact download.
 
 A default-branch push authenticated with `secrets.GITHUB_TOKEN` (the pattern
 older library release workflows used) cannot bypass a CodeRabbit-required
@@ -419,7 +450,7 @@ export default {
     skipChecks: true, // required for OIDC — npm whoami fails without a static token
     publishArgs: ['--ignore-scripts'], // lifecycle scripts already ran before minting
   },
-  github: { release: true },
+  github: { release: true, tokenRef: 'GH_TOKEN' }, // App token, not GITHUB_TOKEN
   plugins: {
     '@release-it/conventional-changelog': {
       infile: 'CHANGELOG.md',
@@ -434,7 +465,7 @@ Notes:
 - `npm.skipChecks: true` is **required** for OIDC (preflight `npm whoami` has no token)
 - `publishArgs: ['--ignore-scripts']` is **required** so `npm publish` does not
   re-run `prepublishOnly` / `prepack` / `prepare` while the App token is in
-  `GITHUB_TOKEN` / `GH_TOKEN` and the git extraheader. Do **not** add release-it
+  `GH_TOKEN` and the git extraheader. Do **not** add release-it
   `hooks` (`before:release`, `before:npm:publish`, …) that build or test —
   those run after minting. Without `--ignore-scripts`, “prepublish before
   minting” is false. Monorepos that publish from a custom script can instead
@@ -449,14 +480,29 @@ Notes:
 - Keep `.release-it.js` declarative: no `hooks`, functions, or imports beyond
   the changelog plugin. It loads while the App token is live.
 - `pnpm release:ci` / `yarn release:ci` is **CI-only**; local dry-run is `pnpm release` (or `release-it -VV --dry-run`)
-- release-it **19** npm-publishes **before** `git push`. If the push fails,
-  that version is already immutable on npmjs. The Release step probes the
-  next version's document first: **404** → release; **200** → fail unless
-  re-run via `workflow_dispatch` with `recover_version=<next>`, which runs
-  `release:ci --npm.publish=false` to finish the commit, tag, push, and GitHub
-  Release; other → fail closed. Recover only if nothing landed on
-  `<default-branch>` since the failed run. Tag pushed but Release missing →
-  `gh release create <tag> --verify-tag`.
+- release-it 19 **npm-publishes before `git push`**. If the push fails, the
+  version is already immutable on npmjs and a plain re-run would fail on
+  `npm publish`. The Release step checks, in order, and fails closed on anything
+  unexpected:
+
+  1. `<default-branch>` still points at the built commit (re-checked right before
+     release-it, so the window for a racing merge is seconds).
+  2. The latest tag has a GitHub Release. If a run pushed the tag but not the
+     Release, it stops instead of cutting another version: create the Release
+     from the tag (`gh release create <tag> --verify-tag`).
+  3. `next` from `release-it --release-version` is strict semver (empty output or
+     a stray line such as `latest` would otherwise probe the package root).
+  4. Recovery inputs are accepted only on `workflow_dispatch`, with
+     `recover_version` equal to `next` **and** `recover_sha` equal to the failed
+     run's built SHA (its build job logs `Building <sha>`), which must still be
+     the checked-out tip. The tag can therefore only land on the source npm
+     shipped; if `<default-branch>` has moved since the failed run, recovery
+     fails and a maintainer tags that commit by hand.
+  5. The registry probe (`--connect-timeout 10 --max-time 30`) of the
+     `<next>` version document: **404** → normal release; **200** on a
+     recovery dispatch → `release:ci --npm.publish=false` (bump commit, tag,
+     push, GitHub Release); **200** otherwise → fail (a push can never take the
+     recovery path); 404 on a recovery dispatch, or any other status → fail.
 - Do **not** run `release:ci` on a laptop expecting OIDC
 
 ---
@@ -587,10 +633,12 @@ Publish npm library (Trusted Publishing):
 - [ ] singleton-release App installed; RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY
 - [ ] Default-branch ruleset bypass includes the App (no GITHUB_TOKEN push)
 - [ ] .github/workflows/release.yml — build job (contents:read) → artifact →
-      release job (id-token:write), npm 11.5.1, pnpm 11, no registry-url;
-      auth npmrc fail-closed (path only); App token minted last; publishArgs
-      --ignore-scripts (no release-it hooks); extraheader + --no-verify atomic
-      push; recover_version; actions pinned to exact tags
+      release job (credential check first, id-token:write, no cache), npm
+      11.5.1, pnpm 11, no registry-url; no secrets in build; auth npmrc
+      fail-closed (path only); App token minted last; publishArgs
+      --ignore-scripts (no release-it hooks); tokenRef GH_TOKEN; extraheader
+      + --no-verify atomic push; semver-checked next; recover_version +
+      recover_sha on dispatch only; dist/ gitignored; actions pinned
 - [ ] npmjs Trusted Publisher per package: org, repo name only, release.yml,
       empty Environment unless used, allow npm publish
 - [ ] First version verified via version URL or npm pack (not npm view alone)
