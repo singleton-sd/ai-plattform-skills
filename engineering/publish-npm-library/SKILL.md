@@ -125,10 +125,11 @@ A **maintainer** publishes a placeholder (typically **`0.0.0`**) locally once
 (see [First-publish bootstrap](#first-publish-bootstrap)), then adds the
 publisher below. Agents do not use a laptop npm token for that placeholder.
 
-Install the org **singleton-release** GitHub App on the repo before merge. Set
-`vars.RELEASE_APP_ID` and `secrets.RELEASE_APP_PRIVATE_KEY`. Put that App on
-the default-branch ruleset bypass list (CodeRabbit required). There is **no**
-`GITHUB_TOKEN` or PAT fallback for the release push.
+Complete the
+[per-repo singleton-release setup](../set-up-product-assets-repo/SKILL.md#per-repo-setup-before-the-first-release-deploy-or-preview-run)
+before the first release. Put that App on the default-branch ruleset bypass
+list (CodeRabbit required). There is **no** `GITHUB_TOKEN` or PAT fallback
+for the release push.
 
 ### 1. npmjs.com — form fields
 

@@ -1089,17 +1089,47 @@ OIDC npm publish, `npm.skipChecks`, and auth-`.npmrc` fail-closed checks:
 
 ---
 
+## Per-repo setup before the first release, deploy or preview run
+
+Required on **every** GitHub repo that uses the singleton-release App
+(assets, libraries, and marketing sites). Complete this **before** the first
+release, `gh-pages` deploy, or preview run. Pato has already granted all three
+on existing repos; this checklist is for **new** repos. Only **Pato** can
+grant them. Bots must flag a missing item to him and must **never** fall back
+to `GITHUB_TOKEN` or a PAT.
+
+1. The **singleton-release** GitHub App is installed on the repo, with
+   **Contents: read and write**. Path: org Settings → GitHub Apps →
+   **singleton-release** → Configure → Repository access.
+2. The org variable **`RELEASE_APP_ID`** is available to the repo (org
+   Settings → Secrets and variables → Actions → Variables → repository
+   access).
+3. The org secret **`RELEASE_APP_PRIVATE_KEY`** is available to the repo
+   (same page, Secrets). Never commit or print the key.
+
+Troubleshooting:
+
+- A **404** on `GET /repos/<org>/<repo>/installation` (the
+  `create-github-app-token` action says `Not Found` and mentions
+  `get-a-repository-installation`) usually means item 1 is missing. It can
+  also mean `RELEASE_APP_ID` is set but holds the wrong App ID.
+- `'client-id' (or deprecated 'app-id') input must be set` means item 2
+  (`RELEASE_APP_ID`) is missing or not shared with the repo.
+- `'private-key' input must be set` means item 3
+  (`RELEASE_APP_PRIVATE_KEY`) is missing or not shared with the repo.
+
+---
+
 ## 3. Pre-merge setup checklist
 
 Complete **before** merging the first real release workflow to
 `<default-branch>`:
 
-1. **Install the singleton-release GitHub App** on this repo (org App). Set
-   repository variable `RELEASE_APP_ID` and secret `RELEASE_APP_PRIVATE_KEY`.
-   Keep it installed with **Contents: read and write**: releases, `gh-pages`
-   pushes, and Release assets all go through it. Never commit or print the
-   private key. GitHub may ask for **sudo**
-   confirmation (Pato's authenticator).
+1. **Per-repo App setup** — complete
+   [Per-repo setup before the first release, deploy or preview run](#per-repo-setup-before-the-first-release-deploy-or-preview-run)
+   (App installed with Contents read/write; `RELEASE_APP_ID` and
+   `RELEASE_APP_PRIVATE_KEY` available to the repo). GitHub may ask for
+   **sudo** confirmation (Pato's authenticator).
 2. **One-time npm placeholder `0.0.0`.** npm cannot attach a trusted publisher
    until the package exists. A **maintainer** runs this **locally once**
    (browser / 2FA / OTP). Agents do not publish from a laptop token:
