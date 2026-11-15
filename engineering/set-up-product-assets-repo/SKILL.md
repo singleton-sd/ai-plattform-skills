@@ -1111,9 +1111,12 @@ Troubleshooting:
 
 - A **404** on `GET /repos/<org>/<repo>/installation` (the
   `create-github-app-token` action says `Not Found` and mentions
-  `get-a-repository-installation`) means item 1 is missing.
-- An empty app-id (`'client-id' (or deprecated 'app-id') input must be
-  set`) means item 2 or 3 is missing.
+  `get-a-repository-installation`) usually means item 1 is missing. It can
+  also mean `RELEASE_APP_ID` is set but holds the wrong App ID.
+- `'client-id' (or deprecated 'app-id') input must be set` means item 2
+  (`RELEASE_APP_ID`) is missing or not shared with the repo.
+- `'private-key' input must be set` means item 3
+  (`RELEASE_APP_PRIVATE_KEY`) is missing or not shared with the repo.
 
 ---
 
