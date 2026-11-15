@@ -90,7 +90,10 @@ published dist`. Agents must not promote unreviewed concepts into `src/`.
 
 The `.sha256` file checks integrity (a truncated or corrupted download), not
 authenticity: anyone who can replace the archive can replace it too, so trust
-rests on the App-only write path.
+rests on the App-only write path. On a re-run it must hold exactly one line
+naming the archive, and that digest is compared with one computed directly
+from the downloaded archive (not `sha256sum -c`, which trusts the file name
+written inside the `.sha256`).
 
 Firmware and other pinned consumers use `/releases/<tag>/` or the Release
 archive. Ordinary web consumers may use the root.
@@ -99,13 +102,21 @@ archive. Ordinary web consumers may use the root.
 publisher. Snapshots sit beside the latest root: root deploys keep `releases/`
 and `CNAME`.
 
+**`CNAME`: `dist/` ships the canonical one.** A root deploy copies `dist/`
+over the root, so if the build emits `dist/CNAME`, that file is the custom
+domain and replaces the one on `gh-pages`. Keep the canonical domain in the
+recipe repo's build output (or emit no `CNAME` and let `gh-pages` keep its
+own); never change it only in the Pages settings, because the next root
+deploy writes the build's value back.
+
 Wire three workflows (pin every `uses:` to a commit SHA). In `pages.yml` and
 `snapshot.yml` a `build` job validates, tests, builds, and uploads `dist/` as
 an artifact. It runs untrusted dependency and repo scripts, so it gets
 `contents: read`, **no secrets**, and no App token. A separate `deploy` job
 that runs **no repo code** (no checkout, install, build, or scripts) is the
 only writer, and it checks the artifact before minting (only regular files
-and directories; no symlinks, special files, or dot entries).
+and directories; no symlinks, special files, or dot entries; a regular
+`manifest.json`).
 
 1. **`pages.yml`** — on push to `<default-branch>`: the `snapshot.yml` jobs
    without the tag parse and the "Release assets" step. The artifact goes
@@ -126,8 +137,11 @@ and directories; no symlinks, special files, or dot entries).
      file, or dot entry (`.git`, …) in the downloaded catalog, and again in
      the extracted archive, so nothing the build planted can be followed by
      `gh release upload` or run by `git`. Builds must not emit dot files.
+     The catalog must also hold a regular `manifest.json`, so a build without
+     one fails before any Release asset is uploaded.
    - **Release assets are idempotent.** The uploaded archive is the source of
-     truth: on a re-run it is downloaded and checked with `sha256sum -c`, never
+     truth: on a re-run it is downloaded and its digest is computed and
+     compared with the one-line `.sha256` (which must name the archive), never
      rebuilt. A first run uploads `<product>-assets-<version>.tar.gz`, then its
      `.sha256` (never `--clobber`). `manifest.json` is uploaded from the
      archive if missing and must match it if present.
@@ -270,6 +284,9 @@ jobs:
           set -euo pipefail
           bad="$(find "${DIR}" -mindepth 1 \( -name '.*' -o ! -type f ! -type d \) -print)"
           [[ -z "${bad}" ]] || { echo "::error::Refusing artifact entries: ${bad//$'\n'/, }" >&2; exit 1; }
+          # Nothing is uploaded unless the catalog has a regular manifest.json.
+          [[ -f "${DIR}/manifest.json" && ! -L "${DIR}/manifest.json" ]] \
+            || { echo "::error::${DIR}/manifest.json is missing or not a regular file." >&2; exit 1; }
 
       # Minted right before the only two steps that write.
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -299,7 +316,14 @@ jobs:
             # Retry: the uploaded archive is the source of truth, never rebuilt.
             has "${archive}.sha256" || { echo "::error::${archive} has no .sha256 (partial upload). See the skill's recovery notes." >&2; exit 1; }
             gh release download "${TAG}" --dir "${work}" --pattern "${archive}" --pattern "${archive}.sha256"
-            (cd "${work}" && sha256sum -c "${archive}.sha256")
+            # Exactly one "<sha256>  <archive>" line; compare with a digest computed here.
+            line_re='^([0-9a-f]{64}) [ *](.+)$'
+            mapfile -t sums < "${work}/${archive}.sha256"
+            [[ "${#sums[@]}" -eq 1 && "${sums[0]}" =~ ${line_re} && "${BASH_REMATCH[2]}" == "${archive}" ]] \
+              || { echo "::error::${archive}.sha256 must hold exactly one line naming ${archive}." >&2; exit 1; }
+            want="${BASH_REMATCH[1]}"
+            got="$(sha256sum < "${work}/${archive}" | cut -d' ' -f1)"
+            [[ "${got}" == "${want}" ]] || { echo "::error::${archive} does not match its .sha256." >&2; exit 1; }
           else
             tar -czf "${work}/${archive}" -C dist .
             (cd "${work}" && sha256sum "${archive}" > "${archive}.sha256")
@@ -309,6 +333,7 @@ jobs:
           tar -xzf "${work}/${archive}" -C site-content
           bad="$(find site-content -mindepth 1 \( -name '.*' -o ! -type f ! -type d \) -print)"
           [[ -z "${bad}" ]] || { echo "::error::Refusing archive entries: ${bad//$'\n'/, }" >&2; exit 1; }
+          [[ -f site-content/manifest.json ]] || { echo "::error::The archive has no regular manifest.json." >&2; exit 1; }
           if has manifest.json; then
             gh release download "${TAG}" --dir "${work}" --pattern manifest.json
             cmp -s "${work}/manifest.json" site-content/manifest.json \
@@ -362,7 +387,7 @@ jobs:
             else
               echo "Root left alone: ${DEFAULT_BRANCH} is at ${tip}, not ${SOURCE_SHA}."
             fi
-            git -C site add -A
+            git -C site add -A -f  # -f: gh-pages ignore rules never drop catalog files
             if git -C site diff --cached --quiet; then echo "gh-pages is up to date."; exit 0; fi
             git -C site -c user.name="${APP_SLUG}[bot]" \
               -c user.email="${user_id}+${APP_SLUG}[bot]@users.noreply.github.com" \
@@ -445,6 +470,9 @@ jobs:
           set -euo pipefail
           bad="$(find "${DIR}" -mindepth 1 \( -name '.*' -o ! -type f ! -type d \) -print)"
           [[ -z "${bad}" ]] || { echo "::error::Refusing artifact entries: ${bad//$'\n'/, }" >&2; exit 1; }
+          # Nothing is uploaded unless the catalog has a regular manifest.json.
+          [[ -f "${DIR}/manifest.json" && ! -L "${DIR}/manifest.json" ]] \
+            || { echo "::error::${DIR}/manifest.json is missing or not a regular file." >&2; exit 1; }
 
       # Minted right before the only step that writes.
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -502,7 +530,7 @@ jobs:
             else
               echo "Root left alone: ${DEFAULT_BRANCH} is at ${tip}, not ${SOURCE_SHA}."
             fi
-            git -C site add -A
+            git -C site add -A -f  # -f: gh-pages ignore rules never drop catalog files
             if git -C site diff --cached --quiet; then echo "gh-pages is up to date."; exit 0; fi
             git -C site -c user.name="${APP_SLUG}[bot]" \
               -c user.email="${user_id}+${APP_SLUG}[bot]@users.noreply.github.com" \
@@ -734,12 +762,17 @@ jobs:
           # Node 22 ships npm 10; Trusted Publishing needs npm ≥ 11.5.1.
           npm install -g npm@11.5.1
           npm --version
+          # Registry overrides and every credential form npm accepts (_auth also
+          # matches _authToken). Log only the path, never the file.
           for npmrc in "${RUNNER_TEMP}/release-files/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
-            if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^//registry\.npmjs\.org|_authToken' "$npmrc"; then
-              echo "Refusing to publish with an auth .npmrc: $npmrc" >&2
+            if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^[[:space:]]*//|registry[[:space:]]*=|_auth|_password' "$npmrc"; then
+              echo "Refusing to publish with a registry override or auth in npmrc: $npmrc" >&2
               exit 1
             fi
           done
+          registry="$(npm config get registry)"
+          [[ "${registry}" == https://registry.npmjs.org/ ]] \
+            || { echo "Refusing to publish: npm registry is ${registry}, not https://registry.npmjs.org/" >&2; exit 1; }
 
       # prepare ran dependency scripts, so its outputs and artifact are untrusted.
       # Re-derive every fact from git and the files with bash, git, jq, and tar only.
@@ -806,6 +839,12 @@ jobs:
           # The tarball's own manifest must name the same package and version.
           [[ "$(tar -xOzf "${files}/${TARBALL}" package/package.json | jq -r '.name + "@" + .version')" == "${PACKAGE}@${VERSION}" ]] \
             || fail "Tarball package.json is not ${PACKAGE}@${VERSION}."
+          # Release notes are regenerated from the CHANGELOG.md checked above; prepare's copy is replaced.
+          notes="${files}/release-notes.md"
+          awk '/^## / { if (found) exit; found=1 } found { print }' "${files}/CHANGELOG.md" > "${notes}.new"
+          [[ "$(head -n1 "${notes}.new")" == "## "*"${VERSION}"* ]] \
+            || fail "CHANGELOG.md does not start with a ## section for ${VERSION}."
+          mv -f "${notes}.new" "${notes}"
 
       - name: Commit and tag the prepared release
         id: plan
@@ -923,6 +962,12 @@ no `cache:` (the untrusted `prepare` job writes the pnpm cache). `dist/` must
 be in `.gitignore` so the bump's `requireCleanWorkingDir` check passes after
 the build.
 
+**Public dependencies only.** This template installs dependencies in
+`prepare`, which holds no secrets, so `pnpm install` can fetch only public
+packages. It does not cover private registry or Git dependencies: do not add
+a read token to `prepare` or `publish` to make one work. A package that needs
+private dependencies needs its own reviewed release design.
+
 release-it (single package) only bumps the version and writes `CHANGELOG.md`
 in `prepare` (`"release:bump": "release-it --ci"`), before the build so
 version-stamped output matches. `prepare` then runs `pnpm run --if-present
@@ -960,7 +1005,7 @@ closed:
 
 1. `prepare` validates the version with the official SemVer 2.0.0 regex.
 2. **Verify prepared release** (in `publish`, before minting; bash, git,
-   jq, and tar only). `prepare` runs dependency scripts, so nothing it
+   jq, tar, and awk only). `prepare` runs dependency scripts, so nothing it
    hands over is trusted:
    - the version matches the official SemVer regex again;
    - the artifact holds exactly `package.json`, `CHANGELOG.md`,
@@ -976,7 +1021,10 @@ closed:
    - the prepared commit (or, on recovery, the tag) is an ancestor of
      `origin/<default-branch>` (`git merge-base --is-ancestor`);
    - recovery outputs equal the dispatch inputs: `recover_version` ==
-     version and `recover_sha` == prepared SHA.
+     version and `recover_sha` == prepared SHA;
+   - the GitHub Release notes are regenerated with `awk` from that checked
+     `CHANGELOG.md` (its first `## ` section, which must name the
+     version), replacing `prepare`'s `release-notes.md`.
 3. The npm registry probe (`--connect-timeout 10 --max-time 30`) of the
    version document returns **200** or **404**; anything else fails.
 4. Normal run: `<default-branch>` still points at the prepared commit, the

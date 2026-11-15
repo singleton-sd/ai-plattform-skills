@@ -164,7 +164,8 @@ in the job that mints the App token.** Required:
   scripts, hooks, or config loaders, no `cache:`. The checkout is data for git
   only. Steps, in order: App credential check (first, before checkout) →
   checkout (`fetch-depth: 0`) → download artifact → setup-node + npm ≥ 11.5.1
-  + auth-`.npmrc` refusal (run from `RUNNER_TEMP`, not the checkout) →
+  + `.npmrc` registry-override/auth refusal (run from `RUNNER_TEMP`, not
+  the checkout) →
   **verify the prepared release** (below) → `git commit --no-verify` and
   `git tag -a` of the prepared files
   (hooks off) → **mint the App token (last setup step)** → `git -c
@@ -210,12 +211,14 @@ private deps) is also read by `npm publish` and can short-circuit OIDC or
 publish with a long-lived credential.
 
 Fix: omit `registry-url` for OIDC publish jobs; before `npm publish`, fail
-closed if **any** applicable npmrc (project, user, or global) contains registry
-auth. **Log only the file path** — never `cat` the file into Actions logs
-(credentials may not be masked).
+closed if **any** applicable npmrc (project, user, or global) overrides the
+registry or holds credentials (`registry=`, `//host/:…` lines, `_auth`,
+`_authToken`, `_password`, `always-auth`), and if `npm config get registry`
+is not `https://registry.npmjs.org/`. **Log only the file path** — never `cat`
+the file into Actions logs (credentials may not be masked).
 
-Install private deps in a separate step that does not leave auth config
-in place for publish (or use a clean userconfig for the publish invocation).
+The reference workflow covers public dependencies only (see **Public
+dependencies only** below); it has no step that installs private deps.
 
 Non-auth project `.npmrc` keys (e.g. `inject-workspace-packages=true`) are fine
 for the OIDC check but can make `npm` noisy; prefer keeping publish jobs free of
@@ -411,12 +414,17 @@ jobs:
           # Node 22 ships npm 10; Trusted Publishing needs npm ≥ 11.5.1.
           npm install -g npm@11.5.1
           npm --version
+          # Registry overrides and every credential form npm accepts (_auth also
+          # matches _authToken). Log only the path, never the file.
           for npmrc in "${RUNNER_TEMP}/release-files/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
-            if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^//registry\.npmjs\.org|_authToken' "$npmrc"; then
-              echo "Refusing to publish with an auth .npmrc: $npmrc" >&2
+            if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^[[:space:]]*//|registry[[:space:]]*=|_auth|_password' "$npmrc"; then
+              echo "Refusing to publish with a registry override or auth in npmrc: $npmrc" >&2
               exit 1
             fi
           done
+          registry="$(npm config get registry)"
+          [[ "${registry}" == https://registry.npmjs.org/ ]] \
+            || { echo "Refusing to publish: npm registry is ${registry}, not https://registry.npmjs.org/" >&2; exit 1; }
 
       # prepare ran dependency scripts, so its outputs and artifact are untrusted.
       # Re-derive every fact from git and the files with bash, git, jq, and tar only.
@@ -483,6 +491,12 @@ jobs:
           # The tarball's own manifest must name the same package and version.
           [[ "$(tar -xOzf "${files}/${TARBALL}" package/package.json | jq -r '.name + "@" + .version')" == "${PACKAGE}@${VERSION}" ]] \
             || fail "Tarball package.json is not ${PACKAGE}@${VERSION}."
+          # Release notes are regenerated from the CHANGELOG.md checked above; prepare's copy is replaced.
+          notes="${files}/release-notes.md"
+          awk '/^## / { if (found) exit; found=1 } found { print }' "${files}/CHANGELOG.md" > "${notes}.new"
+          [[ "$(head -n1 "${notes}.new")" == "## "*"${VERSION}"* ]] \
+            || fail "CHANGELOG.md does not start with a ## section for ${VERSION}."
+          mv -f "${notes}.new" "${notes}"
 
       - name: Commit and tag the prepared release
         id: plan
@@ -597,6 +611,12 @@ no `cache:` (the untrusted `prepare` job writes the pnpm cache). `dist/` must
 be in `.gitignore` so the bump's `requireCleanWorkingDir` check passes after
 the build.
 
+**Public dependencies only.** This template installs dependencies in
+`prepare`, which holds no secrets, so `pnpm install` can fetch only public
+packages. It does not cover private registry or Git dependencies: do not add
+a read token to `prepare` or `publish` to make one work. A package that needs
+private dependencies needs its own reviewed release design.
+
 A default-branch push authenticated with `secrets.GITHUB_TOKEN` (the pattern
 older library release workflows used) cannot bypass a CodeRabbit-required
 ruleset. Do not copy that fallback.
@@ -660,7 +680,7 @@ Notes:
 
   1. `prepare` validates the version with the official SemVer 2.0.0 regex.
   2. **Verify prepared release** (in `publish`, before minting; bash, git,
-     jq, and tar only). `prepare` runs dependency scripts, so nothing it
+     jq, tar, and awk only). `prepare` runs dependency scripts, so nothing it
      hands over is trusted:
      - the version matches the official SemVer regex again;
      - the artifact holds exactly `package.json`, `CHANGELOG.md`,
@@ -676,7 +696,10 @@ Notes:
      - the prepared commit (or, on recovery, the tag) is an ancestor of
        `origin/<default-branch>` (`git merge-base --is-ancestor`);
      - recovery outputs equal the dispatch inputs: `recover_version` ==
-       version and `recover_sha` == prepared SHA.
+       version and `recover_sha` == prepared SHA;
+     - the GitHub Release notes are regenerated with `awk` from that checked
+       `CHANGELOG.md` (its first `## ` section, which must name the
+       version), replacing `prepare`'s `release-notes.md`.
   3. The npm registry probe (`--connect-timeout 10 --max-time 30`) of the
      version document returns **200** or **404**; anything else fails.
   4. Normal run: `<default-branch>` still points at the prepared commit, the

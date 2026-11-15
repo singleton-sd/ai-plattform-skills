@@ -48,7 +48,7 @@ feat: SSDOP-42 Add dark mode toggle to settings page
 | Ticket format | Host issue (`#284` / `284`) **or** `[A-Z]{1,5}-[0-9]{1,5}` (e.g. `AI-47`, `SSDOP-42`) |
 | Body separator | Blank line between subject and body (if body is present) |
 | Body line length | Max 72 characters per line |
-| Release commits | Skipped — format is `chore: Release vX.Y.Z` (auto-generated) |
+| Release commits | Skipped (auto-generated). The release workflows ([`publish-npm-library`](../publish-npm-library/SKILL.md), [`set-up-product-assets-repo`](../set-up-product-assets-repo/SKILL.md)) write `chore(release): v<version> [skip ci]`; older release-it setups (`repo-init`, `repo-init-npm-publish`) write `chore: Release vX.Y.Z` |
 
 ### Commit body: 72-character lines
 
