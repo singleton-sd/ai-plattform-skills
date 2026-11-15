@@ -104,7 +104,8 @@ Wire three workflows (pin every `uses:` to a commit SHA). In `pages.yml` and
 an artifact. It runs untrusted dependency and repo scripts, so it gets
 `contents: read`, **no secrets**, and no App token. A separate `deploy` job
 that runs **no repo code** (no checkout, install, build, or scripts) is the
-only writer.
+only writer, and it checks the artifact before minting (only regular files
+and directories; no symlinks, special files, or dot entries).
 
 1. **`pages.yml`** — on push to `<default-branch>`: the `snapshot.yml` jobs
    without the tag parse and the "Release assets" step. The artifact goes
@@ -116,6 +117,15 @@ only writer.
 2. **`snapshot.yml`** — on `release: published` (not tag push: the release commit
    is `chore(release): v${version} [skip ci]`, which skips tag-push CI):
    - Parse a stable semver tag; reject prereleases.
+   - **The tag must be an authorised release.** Checkout uses `fetch-depth: 0`;
+     before any repo code runs, the tag must sit on the
+     `chore(release): v<version> [skip ci]` commit and that commit must be an
+     ancestor of `origin/<default-branch>` (`git merge-base --is-ancestor`).
+     A Release published for a tag on any other commit deploys nothing.
+   - **Artifact check before minting.** `deploy` fails on any symlink, special
+     file, or dot entry (`.git`, …) in the downloaded catalog, and again in
+     the extracted archive, so nothing the build planted can be followed by
+     `gh release upload` or run by `git`. Builds must not emit dot files.
    - **Release assets are idempotent.** The uploaded archive is the source of
      truth: on a re-run it is downloaded and checked with `sha256sum -c`, never
      rebuilt. A first run uploads `<product>-assets-<version>.tar.gz`, then its
@@ -195,7 +205,24 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
           persist-credentials: false
+
+      # Before any repo code runs: only a release commit on the protected branch.
+      - name: Verify release tag
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          DEFAULT_BRANCH: <default-branch>
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*" >&2; exit 1; }
+          commit="$(git rev-parse "refs/tags/${TAG}^{commit}")"
+          [[ "$(git rev-parse HEAD)" == "${commit}" ]] || fail "Checked-out commit is not tag ${TAG}."
+          [[ "$(git log -1 --format=%s "${commit}")" == "chore(release): v${VERSION} [skip ci]" ]] \
+            || fail "${TAG} is not on a chore(release) commit."
+          git merge-base --is-ancestor "${commit}" "refs/remotes/origin/${DEFAULT_BRANCH}" \
+            || fail "${TAG} is not on ${DEFAULT_BRANCH}."
 
       - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
@@ -234,6 +261,16 @@ jobs:
           name: catalog
           path: dist/
 
+      # Before minting: only regular files and directories; no symlinks, special
+      # files, or dot entries (.git, ...) from the untrusted build.
+      - name: Check artifact contents
+        env:
+          DIR: dist
+        run: |
+          set -euo pipefail
+          bad="$(find "${DIR}" -mindepth 1 \( -name '.*' -o ! -type f ! -type d \) -print)"
+          [[ -z "${bad}" ]] || { echo "::error::Refusing artifact entries: ${bad//$'\n'/, }" >&2; exit 1; }
+
       # Minted right before the only two steps that write.
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token
@@ -270,6 +307,8 @@ jobs:
             gh release upload "${TAG}" "${work}/${archive}.sha256"
           fi
           tar -xzf "${work}/${archive}" -C site-content
+          bad="$(find site-content -mindepth 1 \( -name '.*' -o ! -type f ! -type d \) -print)"
+          [[ -z "${bad}" ]] || { echo "::error::Refusing archive entries: ${bad//$'\n'/, }" >&2; exit 1; }
           if has manifest.json; then
             gh release download "${TAG}" --dir "${work}" --pattern manifest.json
             cmp -s "${work}/manifest.json" site-content/manifest.json \
@@ -294,6 +333,9 @@ jobs:
           export GIT_CONFIG_KEY_0=http.https://github.com/.extraheader GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth}"
           export GIT_CONFIG_KEY_1=core.hooksPath GIT_CONFIG_VALUE_1=/dev/null
           url="https://github.com/${GITHUB_REPOSITORY}.git"
+          # Never copy .git or other dot entries into the clone (re-checked here).
+          [[ -z "$(find site-content -mindepth 1 \( -name '.*' -o ! -type f ! -type d \) -print -quit)" ]] \
+            || { echo "::error::site-content has dot entries, symlinks, or special files." >&2; exit 1; }
           user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
           for attempt in 1 2 3 4 5; do
             rm -rf site
@@ -394,6 +436,16 @@ jobs:
           name: catalog
           path: site-content/
 
+      # Before minting: only regular files and directories; no symlinks, special
+      # files, or dot entries (.git, ...) from the untrusted build.
+      - name: Check artifact contents
+        env:
+          DIR: site-content
+        run: |
+          set -euo pipefail
+          bad="$(find "${DIR}" -mindepth 1 \( -name '.*' -o ! -type f ! -type d \) -print)"
+          [[ -z "${bad}" ]] || { echo "::error::Refusing artifact entries: ${bad//$'\n'/, }" >&2; exit 1; }
+
       # Minted right before the only step that writes.
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token
@@ -421,6 +473,9 @@ jobs:
           export GIT_CONFIG_KEY_0=http.https://github.com/.extraheader GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth}"
           export GIT_CONFIG_KEY_1=core.hooksPath GIT_CONFIG_VALUE_1=/dev/null
           url="https://github.com/${GITHUB_REPOSITORY}.git"
+          # Never copy .git or other dot entries into the clone (re-checked here).
+          [[ -z "$(find site-content -mindepth 1 \( -name '.*' -o ! -type f ! -type d \) -print -quit)" ]] \
+            || { echo "::error::site-content has dot entries, symlinks, or special files." >&2; exit 1; }
           user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
           for attempt in 1 2 3 4 5; do
             rm -rf site
@@ -474,8 +529,10 @@ Shared with [`publish-npm-library`](../publish-npm-library/SKILL.md). Rules:
 |------|-------------|
 | Workflow `permissions` | `contents: read`; `id-token: write` **only** on the `publish` job, never on `prepare` |
 | Checkout | `ref: <default-branch>`, `persist-credentials: false`; checkout's own authenticated fetch picks the revision (no extra unauthenticated `git fetch`) |
-| `prepare` (untrusted) | Install, **validate, build, test, `prepublishOnly`**, `pnpm release:bump` (version + `CHANGELOG.md`), and `npm pack --ignore-scripts`. No `id-token`, no App token, **no `secrets.*`**. Hands the tarball, `package.json`, `CHANGELOG.md`, and release notes to `publish` as one artifact |
-| `publish` (no repo code) | No install, no `node` / `pnpm` / `npx`, no repo scripts, hooks, or config loaders, no `cache:`. The checkout is data for git only |
+| `prepare` (untrusted) | Install, `pnpm release:bump` (version + `CHANGELOG.md`, before the build), **validate, test, build, `prepublishOnly`**, `pnpm run --if-present prepack`, and `npm pack --ignore-scripts` (which skips `prepack`). No `id-token`, no App token, **no `secrets.*`**. Hands the tarball, `package.json`, `CHANGELOG.md`, and release notes to `publish` as one artifact |
+| `publish` (no repo code) | No install, no `node` / `pnpm` / `npx`, no repo scripts, hooks, or config loaders, no `cache:`. The checkout (`fetch-depth: 0`) is data for git only; npm runs from `RUNNER_TEMP` |
+| Verify (pre-mint) | `publish` re-derives everything from git with bash, git, jq, and tar: official SemVer; exactly the four expected regular files; tarball `<scope>-<name>-<version>.tgz` whose `package/package.json` matches; name from `git show <sha>:package.json`; `jq -S 'del(.version)'` equal; `CHANGELOG.md` only prepended; commit/tag ancestor of `origin/<default-branch>`; recovery outputs equal the inputs |
+| Tags | Tag ruleset: only the singleton-release App creates, updates, or deletes tags. Recovery and snapshot still require the tag's commit to be on `<default-branch>` |
 | Secrets | `secrets.RELEASE_APP_PRIVATE_KEY` only in `publish` / `deploy` jobs; the credential check is the first step of `publish`, before checkout |
 | Token | `actions/create-github-app-token` with `vars.RELEASE_APP_ID` + `secrets.RELEASE_APP_PRIVATE_KEY`, minted **last**, after every setup step and after the local commit and tag |
 | gh-pages / Release assets | Same App token, in `deploy` jobs that run no repo code; App stays installed with Contents read/write |
@@ -485,7 +542,7 @@ Shared with [`publish-npm-library`](../publish-npm-library/SKILL.md). Rules:
 | Push auth | Token only in a per-command `-c` extraheader (step-scoped `GIT_CONFIG_*` env for `gh-pages`), never in a URL or on disk |
 | Hooks | No install, so no husky; the commit step still sets `core.hooksPath=/dev/null` (`--no-verify` does not skip `prepare-commit-msg` or `post-commit`) |
 | npm / Release | `npm publish <tarball> --ignore-scripts` (OIDC, outside the checkout, no App token in its env), then `gh release create <version> --verify-tag` |
-| Recovery | Tag on GitHub but npm publish or GitHub Release missing → `workflow_dispatch` with `recover_version` + `recover_sha`; never on push |
+| Recovery | Tag on GitHub but npm publish or GitHub Release missing → `workflow_dispatch` with `recover_version` + `recover_sha`; never on push; the tag must be a release commit on `<default-branch>` |
 | Fallback | **None**. Missing App id/key fails the job. No `secrets.GITHUB_TOKEN`, `github.token`, or PAT in any release or deploy step |
 | Actions | Pin every `uses:` to a commit SHA; comment the exact tag (`v4.4.0`) |
 | Skip loop | Skip when the head commit starts with `chore(release):` |
@@ -540,6 +597,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           RECOVER_VERSION: ${{ inputs.recover_version }}
           RECOVER_SHA: ${{ inputs.recover_sha }}
+          DEFAULT_BRANCH: <default-branch>
         run: |
           set -euo pipefail
           fail() { echo "::error::$*" >&2; exit 1; }
@@ -554,6 +612,9 @@ jobs:
               || fail "Tag ${RECOVER_VERSION} is not the release commit on top of ${RECOVER_SHA}."
             [[ "$(git log -1 --format=%s "${tag_commit}")" == "chore(release): v${RECOVER_VERSION} [skip ci]" ]] \
               || fail "Tag ${RECOVER_VERSION} does not point at a release commit."
+            # Only a release commit already on the protected branch can be recovered.
+            git merge-base --is-ancestor "${tag_commit}" "refs/remotes/origin/${DEFAULT_BRANCH}" \
+              || fail "Tag ${RECOVER_VERSION} is not on ${DEFAULT_BRANCH}; refusing to recover it."
             git checkout --quiet --detach "${tag_commit}"
             sha="${RECOVER_SHA}"
             recover=true
@@ -575,6 +636,16 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Bump first so the build, prepublishOnly, and prepack see the new version.
+      - name: Bump version and changelog
+        env:
+          RECOVER: ${{ steps.rev.outputs.recover }}
+        run: |
+          set -euo pipefail
+          # release-it with commit, tag, push, npm publish, and GitHub Release off
+          # (see .release-it.js). A recovery run uses the tagged release commit as is.
+          [[ "${RECOVER}" == true ]] || pnpm release:bump
+
       - name: Build, test, and prepublish
         run: |
           set -euo pipefail
@@ -583,25 +654,24 @@ jobs:
           pnpm build
           pnpm run --if-present prepublishOnly
 
-      - name: Bump version and changelog, then pack
+      - name: Pack
         id: pack
-        env:
-          RECOVER: ${{ steps.rev.outputs.recover }}
         run: |
           set -euo pipefail
           fail() { echo "::error::$*" >&2; exit 1; }
-          # release-it with commit, tag, push, npm publish, and GitHub Release off
-          # (see .release-it.js). A recovery run packs the tagged release commit as is.
-          [[ "${RECOVER}" == true ]] || pnpm release:bump
           version="$(node -p 'require("./package.json").version')"
-          semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$'
-          [[ "${version}" =~ ${semver} ]] || fail "package.json has no valid version: '${version}'."
+          # Official SemVer 2.0.0 regex (semver.org), POSIX ERE form.
+          semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$'
+          [[ "${version}" =~ ${semver} ]] || fail "package.json has no valid SemVer version: '${version}'."
           out="${RUNNER_TEMP}/release-files"
           mkdir -p "${out}"
-          # Lifecycle scripts already ran above; the tarball is final.
+          # npm pack --ignore-scripts skips prepack/prepare, so run prepack here first
+          # (prepare already ran during install). The tarball is then final.
+          pnpm run --if-present prepack
           tarball="$(npm pack --ignore-scripts --pack-destination "${out}" | tail -n1)"
           cp package.json CHANGELOG.md "${out}/"
-          awk '/^##? / { if (found) exit; found=1 } found { print }' CHANGELOG.md > "${out}/release-notes.md"
+          # Only "## " version headings start a section; a "# Changelog" title does not.
+          awk '/^## / { if (found) exit; found=1 } found { print }' CHANGELOG.md > "${out}/release-notes.md"
           {
             echo "version=${version}"
             echo "package=$(node -p 'require("./package.json").name')"
@@ -659,24 +729,90 @@ jobs:
       - name: Upgrade npm for OIDC publish
         run: |
           set -euo pipefail
+          # Outside the checkout, so no repo .npmrc or package.json is read.
+          cd "${RUNNER_TEMP}"
           # Node 22 ships npm 10; Trusted Publishing needs npm ≥ 11.5.1.
           npm install -g npm@11.5.1
           npm --version
-          for npmrc in "$PWD/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
+          for npmrc in "${RUNNER_TEMP}/release-files/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
             if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^//registry\.npmjs\.org|_authToken' "$npmrc"; then
               echo "Refusing to publish with an auth .npmrc: $npmrc" >&2
               exit 1
             fi
           done
 
+      # prepare ran dependency scripts, so its outputs and artifact are untrusted.
+      # Re-derive every fact from git and the files with bash, git, jq, and tar only.
+      - name: Verify prepared release
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PACKAGE: ${{ needs.prepare.outputs.package }}
+          TARBALL: ${{ needs.prepare.outputs.tarball }}
+          PREPARED_SHA: ${{ needs.prepare.outputs.sha }}
+          RECOVER: ${{ needs.prepare.outputs.recover }}
+          EVENT_NAME: ${{ github.event_name }}
+          RECOVER_VERSION: ${{ inputs.recover_version }}
+          RECOVER_SHA: ${{ inputs.recover_sha }}
+          DEFAULT_BRANCH: <default-branch>
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*" >&2; exit 1; }
+          files="${RUNNER_TEMP}/release-files"
+          semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$'
+          [[ "${VERSION}" =~ ${semver} ]] || fail "Prepared version is not SemVer: '${VERSION}'."
+          [[ "${PREPARED_SHA}" =~ ^[0-9a-f]{40}$ ]] || fail "Prepared sha is not a commit id."
+          # Recovery only when dispatched with exactly the version and sha prepare used.
+          if [[ -n "${RECOVER_VERSION}${RECOVER_SHA}" || "${RECOVER}" != false ]]; then
+            [[ "${RECOVER}" == true && "${EVENT_NAME}" == workflow_dispatch \
+              && "${RECOVER_VERSION}" == "${VERSION}" && "${RECOVER_SHA}" == "${PREPARED_SHA}" ]] \
+              || fail "Recovery outputs do not match recover_version/recover_sha."
+            base="refs/tags/${VERSION}"
+            [[ "$(git rev-parse "${base}^{commit}^")" == "${PREPARED_SHA}" ]] \
+              || fail "Tag ${VERSION} is not the release commit on top of ${PREPARED_SHA}."
+          else
+            [[ "$(git rev-parse HEAD)" == "${PREPARED_SHA}" ]] \
+              || fail "${DEFAULT_BRANCH} moved after prepare; the newer run releases it."
+            base="${PREPARED_SHA}"
+          fi
+          git merge-base --is-ancestor "${base}" "refs/remotes/origin/${DEFAULT_BRANCH}" \
+            || fail "${base} is not on ${DEFAULT_BRANCH}."
+          # The artifact holds exactly these regular files: no extras, no symlinks.
+          expected="${PACKAGE#@}"
+          expected="${expected//\//-}-${VERSION}.tgz"
+          [[ "${TARBALL}" == "${expected}" ]] || fail "Tarball '${TARBALL}' is not ${expected}."
+          listing="$(cd "${files}" && find . -mindepth 1 -printf '%y %P\n' | LC_ALL=C sort)"
+          want="$(printf 'f %s\n' CHANGELOG.md package.json release-notes.md "${TARBALL}" | LC_ALL=C sort)"
+          [[ "${listing}" == "${want}" ]] || fail "Unexpected artifact contents: ${listing//$'\n'/, }"
+          # Name from git, not from prepare; package.json may differ only in version.
+          [[ "${PACKAGE}" == "$(git show "${PREPARED_SHA}:package.json" | jq -r .name)" ]] \
+            || fail "Prepared package name '${PACKAGE}' is not the repo's."
+          [[ "$(jq -r .version "${files}/package.json")" == "${VERSION}" ]] || fail "package.json version is not ${VERSION}."
+          [[ "$(jq -S 'del(.version)' "${files}/package.json")" == "$(git show "${PREPARED_SHA}:package.json" | jq -S 'del(.version)')" ]] \
+            || fail "Prepared package.json changes more than the version."
+          if [[ "${RECOVER}" == true ]]; then
+            cmp -s "${files}/package.json" <(git show "${base}:package.json") || fail "package.json differs from tag ${VERSION}."
+            cmp -s "${files}/CHANGELOG.md" <(git show "${base}:CHANGELOG.md") || fail "CHANGELOG.md differs from tag ${VERSION}."
+          fi
+          # CHANGELOG.md may only gain lines at the top (below an unchanged "# " title).
+          old="$(mktemp)"; new="$(mktemp)"
+          git show "${PREPARED_SHA}:CHANGELOG.md" > "${old}" 2>/dev/null || : > "${old}"
+          cp "${files}/CHANGELOG.md" "${new}"
+          if [[ "$(head -n1 "${old}")" == "# "* && "$(head -n1 "${new}")" == "$(head -n1 "${old}")" ]]; then
+            sed -i 1d "${old}" "${new}"
+          fi
+          n="$(wc -l < "${old}")"
+          (( n == 0 )) || tail -n "${n}" "${new}" | cmp -s - "${old}" \
+            || fail "CHANGELOG.md changes existing lines; only new lines at the top are allowed."
+          # The tarball's own manifest must name the same package and version.
+          [[ "$(tar -xOzf "${files}/${TARBALL}" package/package.json | jq -r '.name + "@" + .version')" == "${PACKAGE}@${VERSION}" ]] \
+            || fail "Tarball package.json is not ${PACKAGE}@${VERSION}."
+
       - name: Commit and tag the prepared release
         id: plan
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
           PACKAGE: ${{ needs.prepare.outputs.package }}
-          PREPARED_SHA: ${{ needs.prepare.outputs.sha }}
           RECOVER: ${{ needs.prepare.outputs.recover }}
-          DEFAULT_BRANCH: <default-branch>
         run: |
           set -euo pipefail
           fail() { echo "::error::$*" >&2; exit 1; }
@@ -686,14 +822,10 @@ jobs:
           [[ "${code}" == 200 || "${code}" == 404 ]] || fail "npm registry probe returned ${code}."
           echo "npm=${code}" >> "$GITHUB_OUTPUT"
           if [[ "${RECOVER}" == true ]]; then
-            # prepare checked that the tag is the release commit on top of recover_sha.
-            [[ "$(git rev-parse "refs/tags/${VERSION}^{commit}^")" == "${PREPARED_SHA}" ]] \
-              || fail "Tag ${VERSION} is not the release commit on top of ${PREPARED_SHA}."
+            # Verify prepared release checked the tag, its ancestry, and the inputs.
             echo "push=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          [[ "$(git rev-parse HEAD)" == "${PREPARED_SHA}" ]] \
-            || fail "${DEFAULT_BRANCH} moved after prepare; the newer run releases it."
           if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
             fail "Tag ${VERSION} already exists. If its run failed, dispatch with recover_version=${VERSION} and recover_sha=$(git rev-parse "refs/tags/${VERSION}^{commit}^")."
           fi
@@ -760,9 +892,10 @@ jobs:
             echo "Recovery: ${VERSION} is already on npm."
             exit 0
           fi
-          # Outside the checkout, so no repo package.json or .npmrc is read.
-          cd "${RUNNER_TEMP}/release-files"
-          npm publish "./${TARBALL}" --ignore-scripts --access public
+          # From an empty directory: no repo or artifact package.json or .npmrc is read.
+          tgz_path="${RUNNER_TEMP}/release-files/${TARBALL}"
+          cd "$(mktemp -d)"
+          npm publish "${tgz_path}" --ignore-scripts --access public
 
       - name: Create GitHub Release
         env:
@@ -791,7 +924,10 @@ be in `.gitignore` so the bump's `requireCleanWorkingDir` check passes after
 the build.
 
 release-it (single package) only bumps the version and writes `CHANGELOG.md`
-in `prepare` (`"release:bump": "release-it --ci"`). It never commits, tags,
+in `prepare` (`"release:bump": "release-it --ci"`), before the build so
+version-stamped output matches. `prepare` then runs `pnpm run --if-present
+prepack` itself, because `npm pack --ignore-scripts` skips it. Release notes
+are the first `## ` section of `CHANGELOG.md`. release-it never commits, tags,
 pushes, publishes, or creates the GitHub Release:
 
 ```js
@@ -822,23 +958,44 @@ bare version. The `gh release create` call uses the App token, so it triggers
 without its npm version or GitHub Release. Checks, in order, all failing
 closed:
 
-1. `prepare` validates the version from `package.json` as strict semver.
-2. The npm registry probe (`--connect-timeout 10 --max-time 30`) of the version
-   document returns **200** or **404**; anything else fails.
-3. Normal run: `<default-branch>` still points at the prepared commit, the tag
-   does not exist yet, and npm says **404** (a version on npm without its tag
-   stops the run for a maintainer to investigate).
-4. After minting: the latest earlier tag has a GitHub Release. If a run pushed
-   a tag but did not finish, the next run stops instead of cutting another
-   version and names the recovery dispatch (or create the Release by hand:
-   `gh release create <tag> --verify-tag`, which also triggers `snapshot.yml`).
-5. `<default-branch>` is re-read on origin right before the atomic push.
+1. `prepare` validates the version with the official SemVer 2.0.0 regex.
+2. **Verify prepared release** (in `publish`, before minting; bash, git,
+   jq, and tar only). `prepare` runs dependency scripts, so nothing it
+   hands over is trusted:
+   - the version matches the official SemVer regex again;
+   - the artifact holds exactly `package.json`, `CHANGELOG.md`,
+     `release-notes.md`, and the tarball, all regular files;
+   - the tarball is the plain file name `<scope>-<name>-<version>.tgz`
+     (npm pack naming), and its `package/package.json` names the same
+     package and version;
+   - the package name equals `git show <sha>:package.json | jq -r .name`,
+     and `jq -S 'del(.version)'` of the prepared `package.json` equals the
+     repo's: only the version may change;
+   - `CHANGELOG.md` only gains lines at the top (below an unchanged
+     `# ` title);
+   - the prepared commit (or, on recovery, the tag) is an ancestor of
+     `origin/<default-branch>` (`git merge-base --is-ancestor`);
+   - recovery outputs equal the dispatch inputs: `recover_version` ==
+     version and `recover_sha` == prepared SHA.
+3. The npm registry probe (`--connect-timeout 10 --max-time 30`) of the
+   version document returns **200** or **404**; anything else fails.
+4. Normal run: `<default-branch>` still points at the prepared commit, the
+   tag does not exist yet, and npm says **404** (a version on npm without
+   its tag stops the run for a maintainer to investigate).
+5. After minting: the latest earlier tag has a GitHub Release. If a run
+   pushed a tag but did not finish, the next run stops instead of cutting
+   another version and names the recovery dispatch (or create the Release by
+   hand: `gh release create <tag> --verify-tag`, which also triggers
+   `snapshot.yml`).
+6. `<default-branch>` is re-read on origin right before the atomic push.
 
 **Recovery** (`workflow_dispatch` only, both inputs required): `recover_version`
 is the stuck tag and `recover_sha` the commit the failed run prepared (its log
 line `Preparing <sha>`; also the tag's parent). `prepare` checks that the tag
-is the `chore(release)` commit on top of `recover_sha` and packs that commit
-without bumping; `publish` checks that origin's tag matches, skips the push,
+is the `chore(release)` commit on top of `recover_sha` and an ancestor of
+`origin/<default-branch>`, and packs that commit without bumping; `publish`
+repeats the ancestry check before minting, requires the prepared files to
+equal the tag's, checks that origin's tag matches, skips the push,
 publishes only if npm says 404, and creates the GitHub Release only if it is
 missing.
 
@@ -892,6 +1049,11 @@ Complete **before** merging the first real release workflow to
    `.coderabbit.yaml`. GitHub may prompt for **sudo** confirmation when
    installing the App or saving the ruleset — that needs **Pato's
    authenticator**.
+6. **Tag ruleset** (recommended): target all tags (or at least `*.*.*`),
+   restrict creations, updates, and deletions, with only the
+   **singleton-release** App on the bypass list. Releases and snapshots
+   already require tags on `<default-branch>`; the ruleset stops writers from
+   planting release-shaped tags at all.
 
 ---
 
@@ -917,15 +1079,21 @@ Set up a product assets repo:
 - [ ] Copied recipe without history; <product> metadata + approved src
 - [ ] validate / test / build clean; dist/manifest.json
 - [ ] pages.yml → gh-pages root (keeps releases/ + CNAME); group gh-pages-root
-- [ ] snapshot.yml on release:published; idempotent (Release archive is source
-      of truth); write-once releases/<v> (diff -r); per-tag group
+- [ ] snapshot.yml on release:published; tag on a chore(release) commit that
+      is an ancestor of origin/<default-branch> (fetch-depth 0); idempotent
+      (Release archive is source of truth); write-once releases/<v>
+      (diff -r); per-tag group
+- [ ] deploy jobs check the artifact before minting: no symlinks, special
+      files, or dot entries; never copy .git
 - [ ] deploy jobs: no repo code; contents:read; singleton-release App token
       minted before the writing steps; no github.token / GITHUB_TOKEN; push
       retries, never force; stale-root guard at push time
-- [ ] release.yml: prepare job (no secrets, no id-token): validate, test,
-      build, release:bump, npm pack --ignore-scripts → artifact → publish job
-      (credential check first, id-token, no install/node/pnpm, no cache):
-      commit --no-verify + tag -a, App token minted last, extraheader
+- [ ] release.yml: prepare job (no secrets, no id-token): release:bump,
+      validate, test, build, prepack, npm pack --ignore-scripts → artifact →
+      publish job (credential check first, id-token, no install/node/pnpm, no
+      cache): verify prepared release before minting (SemVer, exact files,
+      tarball name + manifest, package.json/CHANGELOG diff, ancestry,
+      recovery inputs), commit --no-verify + tag -a, App token minted last, extraheader
       --atomic --no-verify push, npm publish <tarball> --ignore-scripts,
       gh release create --verify-tag; npm@11.5.1 + auth-npmrc refuse;
       recover_version + recover_sha on dispatch only; dist/ gitignored
@@ -933,6 +1101,7 @@ Set up a product assets repo:
 - [ ] Maintainer published npm 0.0.0; waited for registry; trusted publisher
 - [ ] DNS CNAME via Singleton Server; Pato confirmed in his own words
 - [ ] CodeRabbit ruleset copied from poc-inkads-assets 27247890; App on bypass
+- [ ] Tag ruleset: only the singleton-release App creates/updates/deletes tags
 - [ ] After first release: Pages from gh-pages, custom domain, HTTPS
 ```
 
