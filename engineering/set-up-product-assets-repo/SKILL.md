@@ -100,7 +100,8 @@ archive. Ordinary web consumers may use the root.
 
 **Pages source is the `gh-pages` branch**, not the GitHub Actions Pages
 publisher. Snapshots sit beside the latest root: root deploys keep `releases/`
-and `CNAME`.
+and `CNAME`. A build that emits its own top-level `releases/` is refused, so a
+root deploy can never overwrite a snapshot.
 
 **`CNAME`: `dist/` ships the canonical one.** A root deploy copies `dist/`
 over the root, so if the build emits `dist/CNAME`, that file is the custom
@@ -138,7 +139,9 @@ and directories; no symlinks, special files, or dot entries; a regular
      the extracted archive, so nothing the build planted can be followed by
      `gh release upload` or run by `git`. Builds must not emit dot files.
      The catalog must also hold a regular `manifest.json`, so a build without
-     one fails before any Release asset is uploaded.
+     one fails before any Release asset is uploaded, and must not hold a
+     top-level `releases/` (reserved for the write-once snapshots, re-checked
+     before the root copy).
    - **Release assets are idempotent.** The uploaded archive is the source of
      truth: on a re-run it is downloaded and its digest is computed and
      compared with the one-line `.sha256` (which must name the archive), never
@@ -287,6 +290,9 @@ jobs:
           # Nothing is uploaded unless the catalog has a regular manifest.json.
           [[ -f "${DIR}/manifest.json" && ! -L "${DIR}/manifest.json" ]] \
             || { echo "::error::${DIR}/manifest.json is missing or not a regular file." >&2; exit 1; }
+          # releases/ holds the write-once snapshots; the catalog must never ship one.
+          [[ ! -e "${DIR}/releases" && ! -L "${DIR}/releases" ]] \
+            || { echo "::error::${DIR}/releases is reserved for versioned snapshots; the build must not emit it." >&2; exit 1; }
 
       # Minted right before the only two steps that write.
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -361,6 +367,9 @@ jobs:
           # Never copy .git or other dot entries into the clone (re-checked here).
           [[ -z "$(find site-content -mindepth 1 \( -name '.*' -o ! -type f ! -type d \) -print -quit)" ]] \
             || { echo "::error::site-content has dot entries, symlinks, or special files." >&2; exit 1; }
+          # The root copy must never touch the write-once releases/ (re-checked here).
+          [[ ! -e site-content/releases && ! -L site-content/releases ]] \
+            || { echo "::error::site-content/releases is reserved for versioned snapshots." >&2; exit 1; }
           user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
           for attempt in 1 2 3 4 5; do
             rm -rf site
@@ -473,6 +482,9 @@ jobs:
           # Nothing is uploaded unless the catalog has a regular manifest.json.
           [[ -f "${DIR}/manifest.json" && ! -L "${DIR}/manifest.json" ]] \
             || { echo "::error::${DIR}/manifest.json is missing or not a regular file." >&2; exit 1; }
+          # releases/ holds the write-once snapshots; the catalog must never ship one.
+          [[ ! -e "${DIR}/releases" && ! -L "${DIR}/releases" ]] \
+            || { echo "::error::${DIR}/releases is reserved for versioned snapshots; the build must not emit it." >&2; exit 1; }
 
       # Minted right before the only step that writes.
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -504,6 +516,9 @@ jobs:
           # Never copy .git or other dot entries into the clone (re-checked here).
           [[ -z "$(find site-content -mindepth 1 \( -name '.*' -o ! -type f ! -type d \) -print -quit)" ]] \
             || { echo "::error::site-content has dot entries, symlinks, or special files." >&2; exit 1; }
+          # The root copy must never touch the write-once releases/ (re-checked here).
+          [[ ! -e site-content/releases && ! -L site-content/releases ]] \
+            || { echo "::error::site-content/releases is reserved for versioned snapshots." >&2; exit 1; }
           user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
           for attempt in 1 2 3 4 5; do
             rm -rf site
@@ -759,20 +774,27 @@ jobs:
           set -euo pipefail
           # Outside the checkout, so no repo .npmrc or package.json is read.
           cd "${RUNNER_TEMP}"
-          # Node 22 ships npm 10; Trusted Publishing needs npm ≥ 11.5.1.
-          npm install -g npm@11.5.1
-          npm --version
           # Registry overrides and every credential form npm accepts (_auth also
-          # matches _authToken). Log only the path, never the file.
-          for npmrc in "${RUNNER_TEMP}/release-files/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
-            if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^[[:space:]]*//|registry[[:space:]]*=|_auth|_password' "$npmrc"; then
-              echo "Refusing to publish with a registry override or auth in npmrc: $npmrc" >&2
-              exit 1
-            fi
-          done
-          registry="$(npm config get registry)"
-          [[ "${registry}" == https://registry.npmjs.org/ ]] \
-            || { echo "Refusing to publish: npm registry is ${registry}, not https://registry.npmjs.org/" >&2; exit 1; }
+          # matches _authToken). Log only the path, never the file. Checked before
+          # the upgrade (so it never runs with them) and again with the new npm.
+          check_npm_config() {
+            local npmrc registry
+            for npmrc in "${RUNNER_TEMP}/release-files/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
+              if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^[[:space:]]*//|registry[[:space:]]*=|_auth|_password' "$npmrc"; then
+                echo "Refusing to publish with a registry override or auth in npmrc: $npmrc" >&2
+                exit 1
+              fi
+            done
+            registry="$(npm config get registry)"
+            [[ "${registry}" == https://registry.npmjs.org/ ]] \
+              || { echo "Refusing to publish: npm registry is ${registry}, not https://registry.npmjs.org/" >&2; exit 1; }
+          }
+          check_npm_config
+          # Node 22 ships npm 10; Trusted Publishing needs npm ≥ 11.5.1. This job has
+          # id-token: write, so no lifecycle script may run, and only npmjs.org is used.
+          npm install -g --ignore-scripts --registry=https://registry.npmjs.org/ npm@11.5.1
+          npm --version
+          check_npm_config
 
       # prepare ran dependency scripts, so its outputs and artifact are untrusted.
       # Re-derive every fact from git and the files with bash, git, jq, and tar only.
@@ -836,13 +858,26 @@ jobs:
           n="$(wc -l < "${old}")"
           (( n == 0 )) || tail -n "${n}" "${new}" | cmp -s - "${old}" \
             || fail "CHANGELOG.md changes existing lines; only new lines at the top are allowed."
-          # The tarball's own manifest must name the same package and version.
-          [[ "$(tar -xOzf "${files}/${TARBALL}" package/package.json | jq -r '.name + "@" + .version')" == "${PACKAGE}@${VERSION}" ]] \
-            || fail "Tarball package.json is not ${PACKAGE}@${VERSION}."
+          # The tarball's own manifest must equal the prepared package.json (checked above).
+          tar_pkg="$(tar -xOzf "${files}/${TARBALL}" package/package.json | jq -S .)" \
+            || fail "Tarball package.json is missing or not JSON."
+          [[ "${tar_pkg}" == "$(jq -S . "${files}/package.json")" ]] \
+            || fail "Tarball package.json is not the prepared package.json for ${PACKAGE}@${VERSION}."
+          # Publishing honours publishConfig, so any registry key there must be npmjs.org.
+          jq -e '(.publishConfig // {}) | type == "object" and all(to_entries[] | select(.key | test("registry$"; "i"));
+                   .key == "registry" and (.value == "https://registry.npmjs.org/" or .value == "https://registry.npmjs.org"))' \
+            "${files}/package.json" > /dev/null \
+            || fail "package.json publishConfig sets a registry other than https://registry.npmjs.org/."
           # Release notes are regenerated from the CHANGELOG.md checked above; prepare's copy is replaced.
           notes="${files}/release-notes.md"
           awk '/^## / { if (found) exit; found=1 } found { print }' "${files}/CHANGELOG.md" > "${notes}.new"
-          [[ "$(head -n1 "${notes}.new")" == "## "*"${VERSION}"* ]] \
+          # The heading's version token must equal VERSION (## 1.2.30 is not 1.2.3).
+          # VERSION passed the SemVer check above, so "." and "+" are its only
+          # regex metacharacters; both are escaped.
+          ver_re="${VERSION//./\\.}"
+          ver_re="${ver_re//+/\\+}"
+          heading_re="^## \\[?${ver_re}\\]?([ (]|\$)"
+          [[ "$(head -n1 "${notes}.new")" =~ ${heading_re} ]] \
             || fail "CHANGELOG.md does not start with a ## section for ${VERSION}."
           mv -f "${notes}.new" "${notes}"
 
@@ -934,7 +969,7 @@ jobs:
           # From an empty directory: no repo or artifact package.json or .npmrc is read.
           tgz_path="${RUNNER_TEMP}/release-files/${TARBALL}"
           cd "$(mktemp -d)"
-          npm publish "${tgz_path}" --ignore-scripts --access public
+          npm publish "${tgz_path}" --ignore-scripts --access public --registry=https://registry.npmjs.org/
 
       - name: Create GitHub Release
         env:
@@ -1011,8 +1046,9 @@ closed:
    - the artifact holds exactly `package.json`, `CHANGELOG.md`,
      `release-notes.md`, and the tarball, all regular files;
    - the tarball is the plain file name `<scope>-<name>-<version>.tgz`
-     (npm pack naming), and its `package/package.json` names the same
-     package and version;
+     (npm pack naming), and its `package/package.json` equals the
+     prepared `package.json` (`jq -S .`), whose `publishConfig` may name no
+     registry other than `https://registry.npmjs.org/`;
    - the package name equals `git show <sha>:package.json | jq -r .name`,
      and `jq -S 'del(.version)'` of the prepared `package.json` equals the
      repo's: only the version may change;
@@ -1023,8 +1059,9 @@ closed:
    - recovery outputs equal the dispatch inputs: `recover_version` ==
      version and `recover_sha` == prepared SHA;
    - the GitHub Release notes are regenerated with `awk` from that checked
-     `CHANGELOG.md` (its first `## ` section, which must name the
-     version), replacing `prepare`'s `release-notes.md`.
+     `CHANGELOG.md` (its first `## ` section, whose heading must name exactly
+     this version: `## 1.2.30` is not `1.2.3`), replacing `prepare`'s
+     `release-notes.md`.
 3. The npm registry probe (`--connect-timeout 10 --max-time 30`) of the
    version document returns **200** or **404**; anything else fails.
 4. Normal run: `<default-branch>` still points at the prepared commit, the

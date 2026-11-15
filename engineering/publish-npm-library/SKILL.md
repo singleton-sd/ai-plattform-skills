@@ -102,7 +102,7 @@ Rules:
 
 - Scoped name `@singleton-sd/<name>` — never invent a second name for npmjs
 - **Remove** `"private": true`
-- `publishConfig.access: "public"` (add `registry` only if you must pin; prefer default npmjs)
+- `publishConfig.access: "public"` (a `registry` there, if any, must be `https://registry.npmjs.org/`: the publish job refuses any other registry key)
 - Optional `publishConfig.provenance: true` is **CI / OIDC–oriented**. It breaks
   interactive laptop publish (`Automatic provenance generation not supported
   for provider: null`). Keep it for GHA; strip only for local first-publish
@@ -163,9 +163,10 @@ in the job that mints the App token.** Required:
 - `publish` (no repo code): no install, no `node` / `pnpm` / `npx`, no repo
   scripts, hooks, or config loaders, no `cache:`. The checkout is data for git
   only. Steps, in order: App credential check (first, before checkout) →
-  checkout (`fetch-depth: 0`) → download artifact → setup-node + npm ≥ 11.5.1
-  + `.npmrc` registry-override/auth refusal (run from `RUNNER_TEMP`, not
-  the checkout) →
+  checkout (`fetch-depth: 0`) → download artifact → setup-node →
+  `.npmrc` registry-override/auth refusal (run from `RUNNER_TEMP`, not
+  the checkout) → npm ≥ 11.5.1 (`--ignore-scripts`, from npmjs.org) →
+  the same refusal again →
   **verify the prepared release** (below) → `git commit --no-verify` and
   `git tag -a` of the prepared files
   (hooks off) → **mint the App token (last setup step)** → `git -c
@@ -214,7 +215,9 @@ Fix: omit `registry-url` for OIDC publish jobs; before `npm publish`, fail
 closed if **any** applicable npmrc (project, user, or global) overrides the
 registry or holds credentials (`registry=`, `//host/:…` lines, `_auth`,
 `_authToken`, `_password`, `always-auth`), and if `npm config get registry`
-is not `https://registry.npmjs.org/`. **Log only the file path** — never `cat`
+is not `https://registry.npmjs.org/`. Run this check before `npm install -g
+npm@11.5.1` (installed with `--ignore-scripts --registry=https://registry.npmjs.org/`,
+because the job holds `id-token: write`) and again after it. **Log only the file path** — never `cat`
 the file into Actions logs (credentials may not be masked).
 
 The reference workflow covers public dependencies only (see **Public
@@ -411,20 +414,27 @@ jobs:
           set -euo pipefail
           # Outside the checkout, so no repo .npmrc or package.json is read.
           cd "${RUNNER_TEMP}"
-          # Node 22 ships npm 10; Trusted Publishing needs npm ≥ 11.5.1.
-          npm install -g npm@11.5.1
-          npm --version
           # Registry overrides and every credential form npm accepts (_auth also
-          # matches _authToken). Log only the path, never the file.
-          for npmrc in "${RUNNER_TEMP}/release-files/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
-            if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^[[:space:]]*//|registry[[:space:]]*=|_auth|_password' "$npmrc"; then
-              echo "Refusing to publish with a registry override or auth in npmrc: $npmrc" >&2
-              exit 1
-            fi
-          done
-          registry="$(npm config get registry)"
-          [[ "${registry}" == https://registry.npmjs.org/ ]] \
-            || { echo "Refusing to publish: npm registry is ${registry}, not https://registry.npmjs.org/" >&2; exit 1; }
+          # matches _authToken). Log only the path, never the file. Checked before
+          # the upgrade (so it never runs with them) and again with the new npm.
+          check_npm_config() {
+            local npmrc registry
+            for npmrc in "${RUNNER_TEMP}/release-files/.npmrc" "$(npm config get userconfig)" "$(npm config get globalconfig)"; do
+              if [[ -f "$npmrc" ]] && grep -qE 'always-auth|^[[:space:]]*//|registry[[:space:]]*=|_auth|_password' "$npmrc"; then
+                echo "Refusing to publish with a registry override or auth in npmrc: $npmrc" >&2
+                exit 1
+              fi
+            done
+            registry="$(npm config get registry)"
+            [[ "${registry}" == https://registry.npmjs.org/ ]] \
+              || { echo "Refusing to publish: npm registry is ${registry}, not https://registry.npmjs.org/" >&2; exit 1; }
+          }
+          check_npm_config
+          # Node 22 ships npm 10; Trusted Publishing needs npm ≥ 11.5.1. This job has
+          # id-token: write, so no lifecycle script may run, and only npmjs.org is used.
+          npm install -g --ignore-scripts --registry=https://registry.npmjs.org/ npm@11.5.1
+          npm --version
+          check_npm_config
 
       # prepare ran dependency scripts, so its outputs and artifact are untrusted.
       # Re-derive every fact from git and the files with bash, git, jq, and tar only.
@@ -488,13 +498,26 @@ jobs:
           n="$(wc -l < "${old}")"
           (( n == 0 )) || tail -n "${n}" "${new}" | cmp -s - "${old}" \
             || fail "CHANGELOG.md changes existing lines; only new lines at the top are allowed."
-          # The tarball's own manifest must name the same package and version.
-          [[ "$(tar -xOzf "${files}/${TARBALL}" package/package.json | jq -r '.name + "@" + .version')" == "${PACKAGE}@${VERSION}" ]] \
-            || fail "Tarball package.json is not ${PACKAGE}@${VERSION}."
+          # The tarball's own manifest must equal the prepared package.json (checked above).
+          tar_pkg="$(tar -xOzf "${files}/${TARBALL}" package/package.json | jq -S .)" \
+            || fail "Tarball package.json is missing or not JSON."
+          [[ "${tar_pkg}" == "$(jq -S . "${files}/package.json")" ]] \
+            || fail "Tarball package.json is not the prepared package.json for ${PACKAGE}@${VERSION}."
+          # Publishing honours publishConfig, so any registry key there must be npmjs.org.
+          jq -e '(.publishConfig // {}) | type == "object" and all(to_entries[] | select(.key | test("registry$"; "i"));
+                   .key == "registry" and (.value == "https://registry.npmjs.org/" or .value == "https://registry.npmjs.org"))' \
+            "${files}/package.json" > /dev/null \
+            || fail "package.json publishConfig sets a registry other than https://registry.npmjs.org/."
           # Release notes are regenerated from the CHANGELOG.md checked above; prepare's copy is replaced.
           notes="${files}/release-notes.md"
           awk '/^## / { if (found) exit; found=1 } found { print }' "${files}/CHANGELOG.md" > "${notes}.new"
-          [[ "$(head -n1 "${notes}.new")" == "## "*"${VERSION}"* ]] \
+          # The heading's version token must equal VERSION (## 1.2.30 is not 1.2.3).
+          # VERSION passed the SemVer check above, so "." and "+" are its only
+          # regex metacharacters; both are escaped.
+          ver_re="${VERSION//./\\.}"
+          ver_re="${ver_re//+/\\+}"
+          heading_re="^## \\[?${ver_re}\\]?([ (]|\$)"
+          [[ "$(head -n1 "${notes}.new")" =~ ${heading_re} ]] \
             || fail "CHANGELOG.md does not start with a ## section for ${VERSION}."
           mv -f "${notes}.new" "${notes}"
 
@@ -586,7 +609,7 @@ jobs:
           # From an empty directory: no repo or artifact package.json or .npmrc is read.
           tgz_path="${RUNNER_TEMP}/release-files/${TARBALL}"
           cd "$(mktemp -d)"
-          npm publish "${tgz_path}" --ignore-scripts --access public
+          npm publish "${tgz_path}" --ignore-scripts --access public --registry=https://registry.npmjs.org/
 
       - name: Create GitHub Release
         env:
@@ -686,8 +709,9 @@ Notes:
      - the artifact holds exactly `package.json`, `CHANGELOG.md`,
        `release-notes.md`, and the tarball, all regular files;
      - the tarball is the plain file name `<scope>-<name>-<version>.tgz`
-       (npm pack naming), and its `package/package.json` names the same
-       package and version;
+       (npm pack naming), and its `package/package.json` equals the
+       prepared `package.json` (`jq -S .`), whose `publishConfig` may name no
+       registry other than `https://registry.npmjs.org/`;
      - the package name equals `git show <sha>:package.json | jq -r .name`,
        and `jq -S 'del(.version)'` of the prepared `package.json` equals the
        repo's: only the version may change;
@@ -698,8 +722,9 @@ Notes:
      - recovery outputs equal the dispatch inputs: `recover_version` ==
        version and `recover_sha` == prepared SHA;
      - the GitHub Release notes are regenerated with `awk` from that checked
-       `CHANGELOG.md` (its first `## ` section, which must name the
-       version), replacing `prepare`'s `release-notes.md`.
+       `CHANGELOG.md` (its first `## ` section, whose heading must name exactly
+       this version: `## 1.2.30` is not `1.2.3`), replacing `prepare`'s
+       `release-notes.md`.
   3. The npm registry probe (`--connect-timeout 10 --max-time 30`) of the
      version document returns **200** or **404**; anything else fails.
   4. Normal run: `<default-branch>` still points at the prepared commit, the
